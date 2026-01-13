@@ -134,6 +134,21 @@ Access Pathweaver settings by clicking the ⚙️ gear icon on the right side of
 
 ---
 
+## EchoChamber
+
+Be sure to check out my other extension for SillyTavern: [EchoChamber](https://github.com/mattjaybe/SillyTavern-EchoChamber/tree/main).
+
+[EchoChamber](https://github.com/mattjaybe/SillyTavern-EchoChamber/tree/main) is a powerful extension that generates a live reaction feed alongside your story. Whether it's a salt-fueled Discord chat, a viral Twitter feed, dramatic breaking news, or a sarcastic MST3K roasting session—EchoChamber immerses you in the world with AI-generated audience reactions.
+
+<p align="center">
+  <a href="https://github.com/user-attachments/assets/6cf79997-eab2-4fc5-b9b8-ba38673d4fd0"><img src="https://github.com/user-attachments/assets/6cf79997-eab2-4fc5-b9b8-ba38673d4fd0" alt="Pathweaver - Settings" width="70%"></a>
+  <br>
+  <sub><em>Quickly and easily adjust the Pathweaver settings to your preferences.
+</em></sub>
+</p>
+
+---
+
 ## 🌟 Extras
 
 ### 🎨 EyeCare Theme
@@ -238,4 +253,5 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 <p align="center">
   Made with ❤️ for the SillyTavern community
 </p>
+
 
