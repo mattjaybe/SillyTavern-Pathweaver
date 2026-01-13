@@ -46,6 +46,14 @@
 </tr>
 </table>
 
+<p align="center">
+  <a href="https://github.com/user-attachments/assets/323e15fa-5149-4c54-b1c9-2e64b0a7123a"><img src="https://github.com/user-attachments/assets/323e15fa-5149-4c54-b1c9-2e64b0a7123a" alt="Pathweaver - Settings" width="70%"></a>
+  <br>
+  <sub><em>Context-Aware Suggestions based on the story or roleplay.
+
+</em></sub>
+</p>
+
 ---
 
 ## 🎮 How It Works
@@ -230,3 +238,4 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 <p align="center">
   Made with ❤️ for the SillyTavern community
 </p>
+
