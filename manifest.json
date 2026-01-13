@@ -1,0 +1,12 @@
+{
+    "display_name": "Pathweaver",
+    "loading_order": 100,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "Antigravity",
+    "version": "1.0.0",
+    "homePage": "https://github.com/mattjaybe/SillyTavern-Pathweaver",
+    "auto_update": true
+}

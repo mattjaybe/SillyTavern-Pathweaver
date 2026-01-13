@@ -1,0 +1,217 @@
+<div class="pathweaver_settings">
+    <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
+            <b>Pathweaver</b>
+            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+        </div>
+        <div class="inline-drawer-content">
+            <!-- Header Section -->
+            <div class="pw_settings_header">
+                <i class="fa-solid fa-compass"></i>
+                AI-powered story direction suggestions to guide your narrative forward.
+            </div>
+
+            <!-- Global Enable -->
+            <label class="checkbox_label pw_toggle_row" for="pw_enabled">
+                <input id="pw_enabled" type="checkbox" class="checkbox">
+                <span class="pw_toggle_label">
+                    <i class="fa-solid fa-power-off"></i> Enable Pathweaver
+                </span>
+            </label>
+
+            <hr class="pw_divider">
+
+            <!-- Generation Engine Section -->
+            <div class="pw_section">
+                <h4 class="pw_section_title">
+                    <i class="fa-solid fa-microchip"></i> Generation Engine
+                </h4>
+
+                <select id="pw_source" class="text_pole pw_select">
+                    <option value="default">Default (Main API)</option>
+                    <option value="profile">Connection Profile</option>
+                    <option value="ollama">Ollama (Local)</option>
+                    <option value="openai">OpenAI Compatible</option>
+                </select>
+
+                <!-- Provider: Connection Profile -->
+                <div id="pw_profile_settings" class="pw_provider_box pw_provider_profile" style="display:none;">
+                    <div class="pw_provider_title">
+                        <i class="fa-solid fa-link"></i> Connection Profile
+                    </div>
+                    <select id="pw_profile_select" class="text_pole pw_select"></select>
+                    <div class="pw_provider_hint">
+                        <i class="fa-solid fa-shield-halved"></i> Uses your existing ST credentials securely.
+                    </div>
+                </div>
+
+                <!-- Provider: Ollama -->
+                <div id="pw_ollama_settings" class="pw_provider_box pw_provider_ollama" style="display:none;">
+                    <div class="pw_provider_title">
+                        <i class="fa-solid fa-terminal"></i> Ollama
+                    </div>
+                    <input id="pw_ollama_url" type="text" class="text_pole" placeholder="http://localhost:11434"
+                        title="Ollama API endpoint">
+                    <select id="pw_ollama_model" class="text_pole pw_select"></select>
+                    <div id="pw_ollama_status" class="pw_provider_status"></div>
+                </div>
+
+                <!-- Provider: OpenAI Compatible -->
+                <div id="pw_openai_settings" class="pw_provider_box pw_provider_openai" style="display:none;">
+                    <div class="pw_provider_title">
+                        <i class="fa-solid fa-cloud"></i> OpenAI Compatible
+                    </div>
+                    <select id="pw_openai_preset" class="text_pole pw_select">
+                        <option value="custom">Custom</option>
+                        <option value="lmstudio">LM Studio (:1234)</option>
+                        <option value="kobold">KoboldCPP (:5001)</option>
+                        <option value="textgen">TextGenWebUI (:5000)</option>
+                        <option value="vllm">vLLM (:8000)</option>
+                    </select>
+                    <input id="pw_openai_url" type="text" class="text_pole" placeholder="http://localhost:1234/v1"
+                        title="API endpoint URL">
+                    <input id="pw_openai_model" type="text" class="text_pole" placeholder="Model name"
+                        title="Model identifier">
+                </div>
+            </div>
+
+            <hr class="pw_divider">
+
+            <!-- Suggestions Settings Section -->
+            <div class="pw_section">
+                <h4 class="pw_section_title">
+                    <i class="fa-solid fa-sliders"></i> Suggestions Settings
+                </h4>
+
+                <div class="pw_row_2col">
+                    <div>
+                        <label for="pw_suggestions_count" class="pw_input_label">
+                            <i class="fa-solid fa-list-ol"></i> Suggestions
+                        </label>
+                        <select id="pw_suggestions_count" class="text_pole pw_select"
+                            title="Number of suggestions to generate">
+                            <option value="2">2</option>
+                            <option value="4">4</option>
+                            <option value="6" selected>6</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="pw_context_depth" class="pw_input_label">
+                            <i class="fa-solid fa-layer-group"></i> Context
+                        </label>
+                        <select id="pw_context_depth" class="text_pole pw_select">
+                            <option value="2">2 messages</option>
+                            <option value="4">4 messages</option>
+                            <option value="6">6 messages</option>
+                            <option value="8">8 messages</option>
+                            <option value="10">10 messages</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="pw_row_2col" style="margin-top: 10px;">
+                    <div>
+                        <label for="pw_suggestion_length" class="pw_input_label">
+                            <i class="fa-solid fa-text-width"></i> Length
+                        </label>
+                        <select id="pw_suggestion_length" class="text_pole pw_select"
+                            title="Suggestion description length">
+                            <option value="short">Short (2-3 sentences)</option>
+                            <option value="long">Long (4-6 sentences)</option>
+                        </select>
+                    </div>
+                    <div></div>
+                </div>
+
+                <h4 class="pw_section_title" style="margin-top: 15px; font-size: 0.9rem;">
+                    <i class="fa-solid fa-book-open"></i> Context Sources
+                </h4>
+                <p style="color: var(--SmartThemeBodyColor); opacity: 0.7; font-size: 0.8rem; margin: 0 0 8px 0;">
+                    Include additional context for more accurate suggestions
+                </p>
+
+                <label class="checkbox_label pw_checkbox_row" for="pw_include_scenario">
+                    <input id="pw_include_scenario" type="checkbox" class="checkbox">
+                    <span><i class="fa-solid fa-scroll"></i> Include Scenario</span>
+                </label>
+
+                <label class="checkbox_label pw_checkbox_row" for="pw_include_description">
+                    <input id="pw_include_description" type="checkbox" class="checkbox">
+                    <span><i class="fa-solid fa-user"></i> Include Character Description</span>
+                </label>
+
+                <div style="display: flex; flex-direction: column; gap: 2px; margin-top: 5px;">
+                    <label class="checkbox_label pw_checkbox_row" for="pw_include_worldinfo" style="margin-bottom: 0;">
+                        <input id="pw_include_worldinfo" type="checkbox" class="checkbox">
+                        <span><i class="fa-solid fa-globe"></i> Include World Info Lorebook</span>
+                    </label>
+                    <div class="pw_warning_text">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Experimental: May decrease suggestion quality.
+                        Works only on entries with Order 250 or higher.
+                    </div>
+                </div>
+
+
+                <div style="margin-top: 10px;">
+                    <button id="pw_open_editor_settings" class="pw_open_editor_btn">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Suggestion Styles Manager
+                    </button>
+                </div>
+            </div>
+
+            <hr class="pw_divider">
+
+            <!-- Appearance Section -->
+            <div class="pw_section">
+                <h4 class="pw_section_title">
+                    <i class="fa-solid fa-palette"></i> Appearance
+                </h4>
+
+                <div class="pw_row_2col">
+                    <div>
+                        <label for="pw_font_size" class="pw_input_label">
+                            <i class="fa-solid fa-text-height"></i> Font Size
+                        </label>
+                        <select id="pw_font_size" class="text_pole pw_select">
+                            <option value="small">Small</option>
+                            <option value="default" selected>Default</option>
+                            <option value="large">Large</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="pw_bar_height" class="pw_input_label">
+                            <i class="fa-solid fa-up-down"></i> Bar Height
+                        </label>
+                        <select id="pw_bar_height" class="text_pole pw_select">
+                            <option value="compact">Compact</option>
+                            <option value="default" selected>Default</option>
+                            <option value="max">Max</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="pw_divider">
+
+            <!-- Behavior Section -->
+            <div class="pw_section">
+                <h4 class="pw_section_title">
+                    <i class="fa-solid fa-gears"></i> Behavior
+                </h4>
+
+
+
+                <label class="checkbox_label pw_checkbox_row" for="pw_insert_mode">
+                    <input id="pw_insert_mode" type="checkbox" class="checkbox">
+                    <span><i class="fa-solid fa-plus-circle"></i> Insert Mode (Append)</span>
+                </label>
+
+                <label class="checkbox_label pw_checkbox_row" for="pw_show_explicit">
+                    <input id="pw_show_explicit" type="checkbox" class="checkbox">
+                    <span><i class="fa-solid fa-fire pw_nsfw_icon"></i> Show Explicit Category (NSFW)</span>
+                </label>
+            </div>
+
+        </div>
+    </div>
+</div>
