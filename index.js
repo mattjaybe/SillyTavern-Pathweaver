@@ -1800,8 +1800,6 @@ GUIDELINES:
             const setting = jQuery(this).data('setting');
             settings[setting] = !settings[setting];
             jQuery(this).toggleClass('active');
-            saveSettings();
-            syncSettingsToPanel(); // Sync to extension panel
 
             if (setting === 'enabled') {
                 createActionBar();
@@ -1817,13 +1815,14 @@ GUIDELINES:
             if (setting === 'insert_type_ooc' && settings.insert_type_ooc) {
                 settings.insert_type_director = false;
                 jQuery('.pw_toggle[data-setting="insert_type_director"]').removeClass('active');
-                saveSettings();
             }
             if (setting === 'insert_type_director' && settings.insert_type_director) {
                 settings.insert_type_ooc = false;
                 jQuery('.pw_toggle[data-setting="insert_type_ooc"]').removeClass('active');
-                saveSettings();
             }
+
+            saveSettings();
+            syncSettingsToPanel(); // Sync to extension panel (NOW after logic)
         });
 
         // Source dropdown
