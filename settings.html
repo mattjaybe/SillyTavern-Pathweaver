@@ -72,7 +72,49 @@
                         title="API endpoint URL">
                     <input id="pw_openai_model" type="text" class="text_pole" placeholder="Model name"
                         title="Model identifier">
+                    <input id="pw_openai_key" type="password" class="text_pole" placeholder="API Key (Optional)"
+                        title="API Key">
                 </div>
+            </div>
+
+            <hr class="pw_divider">
+
+            <!-- Behavior Section -->
+            <div class="pw_section">
+                <h4 class="pw_section_title">
+                    <i class="fa-solid fa-gears"></i> Behavior
+                </h4>
+
+                <label class="checkbox_label pw_checkbox_row" for="pw_insert_mode">
+                    <input id="pw_insert_mode" type="checkbox" class="checkbox">
+                    <span><i class="fa-solid fa-plus-circle"></i> Insert Mode (Append)</span>
+                </label>
+
+                <div style="margin-top: 5px;">
+                    <label class="checkbox_label pw_checkbox_row" for="pw_insert_type_enabled">
+                        <input id="pw_insert_type_enabled" type="checkbox" class="checkbox">
+                        <span><i class="fa-solid fa-code-branch"></i> Insert Type</span>
+                    </label>
+
+                    <div id="pw_insert_type_options"
+                        style="display:none; margin-left: 20px; flex-direction: column; gap: 5px;">
+                        <label class="checkbox_label pw_checkbox_row" for="pw_insert_type_ooc"
+                            style="font-size: 0.9em;">
+                            <input id="pw_insert_type_ooc" type="checkbox" class="checkbox">
+                            <span>[OOC: ]</span>
+                        </label>
+                        <label class="checkbox_label pw_checkbox_row" for="pw_insert_type_director"
+                            style="font-size: 0.9em;">
+                            <input id="pw_insert_type_director" type="checkbox" class="checkbox">
+                            <span>[Director: ]</span>
+                        </label>
+                    </div>
+                </div>
+
+                <label class="checkbox_label pw_checkbox_row" for="pw_show_explicit">
+                    <input id="pw_show_explicit" type="checkbox" class="checkbox">
+                    <span><i class="fa-solid fa-fire pw_nsfw_icon"></i> Show Explicit Category (NSFW)</span>
+                </label>
             </div>
 
             <hr class="pw_divider">
@@ -189,27 +231,6 @@
                         </select>
                     </div>
                 </div>
-            </div>
-
-            <hr class="pw_divider">
-
-            <!-- Behavior Section -->
-            <div class="pw_section">
-                <h4 class="pw_section_title">
-                    <i class="fa-solid fa-gears"></i> Behavior
-                </h4>
-
-
-
-                <label class="checkbox_label pw_checkbox_row" for="pw_insert_mode">
-                    <input id="pw_insert_mode" type="checkbox" class="checkbox">
-                    <span><i class="fa-solid fa-plus-circle"></i> Insert Mode (Append)</span>
-                </label>
-
-                <label class="checkbox_label pw_checkbox_row" for="pw_show_explicit">
-                    <input id="pw_show_explicit" type="checkbox" class="checkbox">
-                    <span><i class="fa-solid fa-fire pw_nsfw_icon"></i> Show Explicit Category (NSFW)</span>
-                </label>
             </div>
 
         </div>

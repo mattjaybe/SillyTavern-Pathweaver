@@ -71,10 +71,14 @@
         openai_url: 'http://localhost:1234/v1',
         openai_model: 'local-model',
         openai_preset: 'custom',
+        openai_key: '',
         suggestions_count: 6,
         context_depth: 4,
         bar_minimized: false,
         insert_mode: false,
+        insert_type_enabled: false,
+        insert_type_ooc: false,
+        insert_type_director: false,
         show_explicit: false,
         bar_font_size: 'default',  // 'small', 'default', 'large'
         bar_height: 'default',      // 'compact', 'default', 'max'
@@ -589,9 +593,15 @@ GUIDELINES:
             } else if (settings.source === 'openai') {
                 const baseUrl = (settings.openai_url || 'http://localhost:1234/v1').replace(/\/$/, '');
                 log(`Generating with OpenAI-compatible: ${baseUrl}`);
+
+                const headers = { 'Content-Type': 'application/json' };
+                if (settings.openai_key) {
+                    headers['Authorization'] = `Bearer ${settings.openai_key}`;
+                }
+
                 const response = await fetch(`${baseUrl}/chat/completions`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: headers,
                     body: JSON.stringify({
                         model: settings.openai_model || 'local-model',
                         messages: [
@@ -1486,13 +1496,23 @@ GUIDELINES:
         });
     }
 
+    function getFormattedSuggestion(text) {
+        if (!settings.insert_type_enabled) return text;
+
+        if (settings.insert_type_ooc) return `[OOC: ${text}]`;
+        if (settings.insert_type_director) return `[Director: ${text}]`;
+
+        return text;
+    }
+
     function copyToClipboard(text) {
-        navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!'));
+        const formatted = getFormattedSuggestion(text);
+        navigator.clipboard.writeText(formatted).then(() => showToast('Copied to clipboard!'));
     }
 
     function insertSuggestion(suggestion) {
         const textarea = jQuery('#send_textarea');
-        const text = suggestion.description;
+        const text = getFormattedSuggestion(suggestion.description);
         const current = textarea.val();
 
         if (settings.insert_mode) {
@@ -1521,7 +1541,7 @@ GUIDELINES:
 
     function sendSuggestion(suggestion) {
         const textarea = jQuery('#send_textarea');
-        const text = suggestion.description;
+        const text = getFormattedSuggestion(suggestion.description);
 
         textarea.val(text);
         textarea.trigger('input');
@@ -1591,6 +1611,22 @@ GUIDELINES:
                             <div class="pw_setting_row">
                                 <span class="pw_setting_label"><i class="fa-solid fa-fire pw_nsfw_icon"></i> Show Explicit Category (NSFW)</span>
                                 <div class="pw_toggle ${settings.show_explicit ? 'active' : ''}" data-setting="show_explicit"></div>
+                            </div>
+                            
+                            <div class="pw_setting_row">
+                                <span class="pw_setting_label"><i class="fa-solid fa-code-branch"></i> Insert Type</span>
+                                <div class="pw_toggle ${settings.insert_type_enabled ? 'active' : ''}" data-setting="insert_type_enabled"></div>
+                            </div>
+                            
+                            <div id="pw_sm_insert_type_options" style="${settings.insert_type_enabled ? 'display:flex' : 'display:none'}; flex-direction: column; gap: 8px; padding-left: 20px; border-left: 2px solid var(--SmartThemeBorderColor); margin-bottom: 10px;">
+                                <div class="pw_setting_row">
+                                    <span class="pw_setting_label" style="font-size: 0.9em;">[OOC: ]</span>
+                                    <div class="pw_toggle ${settings.insert_type_ooc ? 'active' : ''}" data-setting="insert_type_ooc"></div>
+                                </div>
+                                <div class="pw_setting_row">
+                                    <span class="pw_setting_label" style="font-size: 0.9em;">[Director: ]</span>
+                                    <div class="pw_toggle ${settings.insert_type_director ? 'active' : ''}" data-setting="insert_type_director"></div>
+                                </div>
                             </div>
 
                         </div>
@@ -1698,8 +1734,11 @@ GUIDELINES:
                                     <input type="text" id="pw_sm_openai_url" value="${settings.openai_url}" placeholder="http://localhost:1234/v1">
                                 </div>
                                 <div class="pw_sm_provider_row">
-                                    <label>Model</label>
                                     <input type="text" id="pw_sm_openai_model" value="${settings.openai_model}" placeholder="Model name">
+                                </div>
+                                <div class="pw_sm_provider_row">
+                                    <label>Key</label>
+                                    <input type="password" id="pw_sm_openai_key" value="${settings.openai_key}" placeholder="API Key (Optional)">
                                 </div>
                             </div>
                         </div>
@@ -1768,6 +1807,23 @@ GUIDELINES:
                 createActionBar();
             }
             if (setting === 'show_explicit') createActionBar();
+
+            if (setting === 'insert_type_enabled') {
+                if (settings[setting]) jQuery('#pw_sm_insert_type_options').css('display', 'flex');
+                else jQuery('#pw_sm_insert_type_options').hide();
+            }
+
+            // Mutually exclusive sub-options
+            if (setting === 'insert_type_ooc' && settings.insert_type_ooc) {
+                settings.insert_type_director = false;
+                jQuery('.pw_toggle[data-setting="insert_type_director"]').removeClass('active');
+                saveSettings();
+            }
+            if (setting === 'insert_type_director' && settings.insert_type_director) {
+                settings.insert_type_ooc = false;
+                jQuery('.pw_toggle[data-setting="insert_type_ooc"]').removeClass('active');
+                saveSettings();
+            }
         });
 
         // Source dropdown
@@ -1788,6 +1844,7 @@ GUIDELINES:
         jQuery('#pw_sm_ollama_model').on('change', function () { settings.ollama_model = this.value; saveSettings(); syncSettingsToPanel(); });
         jQuery('#pw_sm_openai_url').on('change', function () { settings.openai_url = this.value; saveSettings(); syncSettingsToPanel(); });
         jQuery('#pw_sm_openai_model').on('change', function () { settings.openai_model = this.value; saveSettings(); syncSettingsToPanel(); });
+        jQuery('#pw_sm_openai_key').on('change', function () { settings.openai_key = this.value; saveSettings(); syncSettingsToPanel(); });
 
         jQuery('#pw_sm_suggestions').on('change', function () {
             settings.suggestions_count = Math.max(1, Math.min(20, parseInt(this.value) || 10));
@@ -2325,6 +2382,14 @@ GUIDELINES:
         jQuery('#pw_bar_height').val(settings.bar_height);
         jQuery('#pw_insert_mode').prop('checked', settings.insert_mode);
         jQuery('#pw_show_explicit').prop('checked', settings.show_explicit);
+
+        jQuery('#pw_insert_type_enabled').prop('checked', settings.insert_type_enabled);
+        jQuery('#pw_insert_type_ooc').prop('checked', settings.insert_type_ooc);
+        jQuery('#pw_insert_type_director').prop('checked', settings.insert_type_director);
+
+        if (settings.insert_type_enabled) jQuery('#pw_insert_type_options').css('display', 'flex');
+        else jQuery('#pw_insert_type_options').hide();
+
         // Context sources
         jQuery('#pw_include_scenario').prop('checked', settings.include_scenario);
         jQuery('#pw_include_description').prop('checked', settings.include_description);
@@ -2397,11 +2462,20 @@ GUIDELINES:
         jQuery('#pw_openai_preset').val(settings.openai_preset);
         jQuery('#pw_openai_url').val(settings.openai_url);
         jQuery('#pw_openai_model').val(settings.openai_model);
+        jQuery('#pw_openai_key').val(settings.openai_key);
         jQuery('#pw_suggestions_count').val(settings.suggestions_count);
         jQuery('#pw_context_depth').val(settings.context_depth);
         jQuery('#pw_suggestion_length').val(settings.suggestion_length);
         jQuery('#pw_insert_mode').prop('checked', settings.insert_mode);
         jQuery('#pw_show_explicit').prop('checked', settings.show_explicit);
+
+        jQuery('#pw_insert_type_enabled').prop('checked', settings.insert_type_enabled);
+        jQuery('#pw_insert_type_ooc').prop('checked', settings.insert_type_ooc);
+        jQuery('#pw_insert_type_director').prop('checked', settings.insert_type_director);
+
+        if (settings.insert_type_enabled) jQuery('#pw_insert_type_options').css('display', 'flex');
+        else jQuery('#pw_insert_type_options').hide();
+
         jQuery('#pw_font_size').val(settings.bar_font_size);
         jQuery('#pw_bar_height').val(settings.bar_height);
         // Context sources
@@ -2419,6 +2493,7 @@ GUIDELINES:
         jQuery('#pw_sm_ollama_model').val(settings.ollama_model);
         jQuery('#pw_sm_openai_url').val(settings.openai_url);
         jQuery('#pw_sm_openai_model').val(settings.openai_model);
+        jQuery('#pw_sm_openai_key').val(settings.openai_key);
         jQuery('#pw_sm_suggestions').val(settings.suggestions_count);
         jQuery('#pw_sm_context').val(settings.context_depth);
         jQuery('#pw_sm_suggestion_length').val(settings.suggestion_length);
@@ -2428,6 +2503,14 @@ GUIDELINES:
         jQuery('.pw_toggle[data-setting="enabled"]').toggleClass('active', settings.enabled);
         jQuery('.pw_toggle[data-setting="show_explicit"]').toggleClass('active', settings.show_explicit);
         jQuery('.pw_toggle[data-setting="insert_mode"]').toggleClass('active', settings.insert_mode);
+
+        jQuery('.pw_toggle[data-setting="insert_type_enabled"]').toggleClass('active', settings.insert_type_enabled);
+        if (settings.insert_type_enabled) jQuery('#pw_sm_insert_type_options').css('display', 'flex');
+        else jQuery('#pw_sm_insert_type_options').hide();
+
+        jQuery('.pw_toggle[data-setting="insert_type_ooc"]').toggleClass('active', settings.insert_type_ooc);
+        jQuery('.pw_toggle[data-setting="insert_type_director"]').toggleClass('active', settings.insert_type_director);
+
         // Context sources toggles
         jQuery('.pw_toggle[data-setting="include_scenario"]').toggleClass('active', settings.include_scenario);
         jQuery('.pw_toggle[data-setting="include_description"]').toggleClass('active', settings.include_description);
@@ -2513,6 +2596,13 @@ GUIDELINES:
             syncSettingsToModal();
         });
 
+        // OpenAI Key
+        jQuery('#pw_openai_key').on('change', function () {
+            settings.openai_key = this.value;
+            saveSettings();
+            syncSettingsToModal();
+        });
+
         // Suggestions count
         jQuery('#pw_suggestions_count').on('change', function () {
             settings.suggestions_count = Math.max(1, Math.min(20, parseInt(this.value) || 10));
@@ -2557,6 +2647,38 @@ GUIDELINES:
             saveSettings();
             syncSettingsToModal();
             createActionBar();
+        });
+
+        // Insert Type Enabled
+        jQuery('#pw_insert_type_enabled').on('change', function () {
+            settings.insert_type_enabled = this.checked;
+            saveSettings();
+            syncSettingsToModal();
+
+            if (this.checked) jQuery('#pw_insert_type_options').css('display', 'flex');
+            else jQuery('#pw_insert_type_options').hide();
+        });
+
+        // Insert Type OOC
+        jQuery('#pw_insert_type_ooc').on('change', function () {
+            settings.insert_type_ooc = this.checked;
+            if (this.checked) {
+                settings.insert_type_director = false;
+                jQuery('#pw_insert_type_director').prop('checked', false);
+            }
+            saveSettings();
+            syncSettingsToModal();
+        });
+
+        // Insert Type Director
+        jQuery('#pw_insert_type_director').on('change', function () {
+            settings.insert_type_director = this.checked;
+            if (this.checked) {
+                settings.insert_type_ooc = false;
+                jQuery('#pw_insert_type_ooc').prop('checked', false);
+            }
+            saveSettings();
+            syncSettingsToModal();
         });
 
         // Suggestion length
