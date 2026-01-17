@@ -113,7 +113,7 @@ Access Pathweaver settings by clicking the ⚙️ gear icon on the right side of
 
 | Engine | Description |
 |--------|-------------|
-| **Main (API)** | Uses your currently active SillyTavern API (Recommended). Easiest setup. |
+| **Main (API)** | Uses your currently active SillyTavern API. Easiest setup. |
 | **Connection Profile** ⭐ | Recommended. Select a Connection Profile saved in SillyTavern. |
 | **Ollama** | Connect directly to a local Ollama instance (default: `http://127.0.0.1:11434`). |
 | **OpenAI Compatible** | Connect to KoboldCPP, LM Studio, vLLM, or other OpenAI-compatible endpoints. |
@@ -253,6 +253,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 <p align="center">
   Made with ❤️ for the SillyTavern community
 </p>
+
 
 
 
