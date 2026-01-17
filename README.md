@@ -240,8 +240,6 @@ Love Pathweaver? Here's how you can help:
 - 🔧 **Submit PRs** for improvements
 - 📣 **Spread the word** and tell your friends about Pathweaver
 
-**Pro contributors**: Check [CONTRIBUTING.md](CONTRIBUTING.md) for development setup
-
 ---
 
 ## 📄 License
@@ -253,6 +251,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 <p align="center">
   Made with ❤️ for the SillyTavern community
 </p>
+
 
 
 
