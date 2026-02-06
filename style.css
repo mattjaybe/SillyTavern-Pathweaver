@@ -3,8 +3,9 @@
    Uses SillyTavern theme variables for seamless integration
    ============================================================ */
 
-/* Import serif font for title */
+/* Fonts for bar title options */
 @import url('https://fonts.googleapis.com/css2?family=Crimson+Text:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@700&family=Lora:wght@700&family=Inter:wght@700&family=Nunito:wght@700&family=Poppins:wght@700&family=Roboto:wght@700&display=swap');
 
 /* CSS Custom Properties - Inheriting from SillyTavern theme */
 :root {
@@ -219,6 +220,20 @@
     filter: drop-shadow(0 0 2px var(--pw-accent-glow));
 }
 
+/* Bar title font options (None = hidden) */
+.pw_action_bar.pw_bar_title_none .pw_bar_title {
+    display: none !important;
+}
+
+.pw_action_bar.pw_bar_title_font_crimson .pw_bar_title { font-family: 'Crimson Text', Georgia, serif; }
+.pw_action_bar.pw_bar_title_font_georgia .pw_bar_title { font-family: Georgia, 'Times New Roman', serif; }
+.pw_action_bar.pw_bar_title_font_merriweather .pw_bar_title { font-family: 'Merriweather', Georgia, serif; }
+.pw_action_bar.pw_bar_title_font_lora .pw_bar_title { font-family: 'Lora', Georgia, serif; }
+.pw_action_bar.pw_bar_title_font_inter .pw_bar_title { font-family: 'Inter', system-ui, sans-serif; }
+.pw_action_bar.pw_bar_title_font_nunito .pw_bar_title { font-family: 'Nunito', system-ui, sans-serif; }
+.pw_action_bar.pw_bar_title_font_poppins .pw_bar_title { font-family: 'Poppins', system-ui, sans-serif; }
+.pw_action_bar.pw_bar_title_font_roboto .pw_bar_title { font-family: 'Roboto', system-ui, sans-serif; }
+
 /* Category buttons container */
 .pw_category_buttons {
     display: flex;
@@ -355,6 +370,7 @@
     z-index: 10000;
     opacity: 0;
     visibility: hidden;
+    pointer-events: none;
     transition: all 0.3s ease;
     padding: 20px;
 }
@@ -362,6 +378,7 @@
 .pw_modal_overlay.active {
     opacity: 1;
     visibility: visible;
+    pointer-events: auto;
 }
 
 .pw_modal {
@@ -685,6 +702,108 @@
 }
 
 /* ============================================================
+   STREAMING PLACEHOLDER CARDS - Glass waiting & active slot
+   ============================================================ */
+
+.pw_streaming_slot {
+    pointer-events: none;
+    min-height: 120px;
+}
+
+.pw_streaming_waiting {
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--pw-glass-bg) 85%, transparent) 0%,
+        color-mix(in srgb, var(--pw-accent) 8%, var(--pw-glass-bg)) 50%,
+        color-mix(in srgb, var(--pw-glass-bg) 85%, transparent) 100%
+    );
+    background-size: 200% 200%;
+    animation: pw_glass_shimmer 2.5s ease-in-out infinite;
+    border-color: var(--pw-glass-border);
+    opacity: 0.92;
+}
+
+.pw_streaming_waiting .pw_card_title,
+.pw_streaming_waiting .pw_card_description {
+    color: var(--pw-text-muted);
+    opacity: 0.6;
+}
+
+.pw_streaming_waiting .pw_slot_num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.6em;
+    height: 1.6em;
+    padding: 0 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--pw-text-muted);
+    background: color-mix(in srgb, var(--pw-accent) 18%, transparent);
+    border-radius: 6px;
+    border: 1px solid var(--pw-glass-border);
+}
+
+.pw_streaming_icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pw_streaming_icon i {
+    font-size: 1rem;
+    opacity: 0.9;
+}
+
+.pw_streaming_placeholder {
+    font-style: italic;
+}
+
+@keyframes pw_glass_shimmer {
+    0%, 100% { background-position: 100% 50%; }
+    50% { background-position: 0% 50%; }
+}
+
+.pw_streaming_active {
+    background: linear-gradient(
+        110deg,
+        var(--pw-glass-bg) 0%,
+        color-mix(in srgb, var(--pw-accent) 12%, var(--pw-glass-bg)) 35%,
+        var(--pw-glass-bg) 70%,
+        color-mix(in srgb, var(--pw-accent) 8%, var(--pw-glass-bg)) 100%
+    );
+    background-size: 200% 100%;
+    animation: pw_streaming_beam 2s ease-in-out infinite;
+    border-color: color-mix(in srgb, var(--pw-accent) 50%, var(--pw-glass-border));
+    box-shadow: 0 0 20px color-mix(in srgb, var(--pw-accent) 25%, transparent);
+}
+
+.pw_streaming_active .pw_card_emoji {
+    opacity: 0.9;
+    animation: pw_pulse_emoji 1.2s ease-in-out infinite;
+}
+
+.pw_streaming_active .pw_card_title,
+.pw_streaming_active .pw_card_description {
+    color: var(--pw-text-primary);
+}
+
+.pw_streaming_active .pw_streaming_placeholder {
+    color: var(--pw-text-secondary);
+    opacity: 0.85;
+}
+
+@keyframes pw_streaming_beam {
+    0%, 100% { background-position: 100% 0; }
+    50% { background-position: 0% 0; }
+}
+
+@keyframes pw_pulse_emoji {
+    0%, 100% { opacity: 0.7; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.05); }
+}
+
+/* ============================================================
    SKELETON LOADING - Fixed colors
    ============================================================ */
 
@@ -841,6 +960,14 @@
     width: 20px;
     text-align: center;
     opacity: 0.7;
+}
+
+.pw_setting_hint {
+    color: var(--pw-text-muted);
+    font-size: 0.75rem;
+    margin: 2px 0 8px 0;
+    padding-left: 28px;
+    line-height: 1.4;
 }
 
 .pw_setting_control {
@@ -1378,6 +1505,7 @@
         z-index: 10000;
         opacity: 0;
         visibility: hidden;
+        pointer-events: none !important;
         transition: all 0.3s ease;
         overflow-y: auto !important;
     }
@@ -1385,6 +1513,7 @@
     .pw_modal_overlay.active {
         opacity: 1 !important;
         visibility: visible !important;
+        pointer-events: auto !important;
     }
 
     .pw_modal {
@@ -1659,6 +1788,7 @@
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     opacity: 0;
     visibility: hidden;
+    pointer-events: none;
     transition: all 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
     z-index: 1000;
     display: flex;
@@ -1671,6 +1801,7 @@
 .pw_dropdown_wrapper.active .pw_dropdown_menu {
     opacity: 1;
     visibility: visible;
+    pointer-events: auto;
     transform: translateX(-50%) translateY(0);
 }
 
@@ -2214,6 +2345,42 @@
     background-color: #2b2b3b;
     /* Fallback dark color */
     color: var(--pw-text-primary);
+}
+
+/* Title font dropdown - themed and each option in its font */
+.pw_title_font_select {
+    min-height: 40px;
+    padding: 10px 36px 10px 14px !important;
+    background: var(--pw-glass-bg, rgba(30, 30, 40, 0.95)) !important;
+    border: 1px solid var(--pw-glass-border);
+    border-radius: var(--pw-radius-sm, 8px);
+    color: var(--pw-text-primary) !important;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: border-color var(--pw-transition), box-shadow var(--pw-transition);
+}
+
+.pw_title_font_select:hover {
+    border-color: color-mix(in srgb, var(--pw-accent) 40%, var(--pw-glass-border));
+}
+
+.pw_title_font_select:focus {
+    border-color: var(--pw-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--pw-accent) 30%, transparent);
+    outline: none;
+}
+
+.pw_title_font_select option {
+    background: var(--pw-glass-bg, #1e1e28) !important;
+    color: var(--pw-text-primary) !important;
+    padding: 10px 12px;
+}
+
+.pw_modal .pw_title_font_select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 12px center !important;
+    background-size: 14px !important;
 }
 
 /* Description Scrolling */
@@ -2812,6 +2979,7 @@
     scrollbar-width: thin;
     opacity: 0;
     visibility: hidden;
+    pointer-events: none;
     transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
 }
 
@@ -2819,6 +2987,7 @@
     display: block;
     opacity: 1;
     visibility: visible;
+    pointer-events: auto;
     animation: pw_fade_in 0.2s ease;
 }
 

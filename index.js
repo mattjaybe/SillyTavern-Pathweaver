@@ -16,6 +16,8 @@
     // ============================================================
 
     const DEBUG = false; // Set to true for development logging
+    /** Console prefix for streaming instrumentation - copy from DevTools to debug Connection Profile / Main API streaming */
+    const STREAM_LOG = '[Pathweaver:Stream]';
 
     const MODULE_NAME = 'pathweaver';
     const EXTENSION_NAME = 'Pathweaver';
@@ -61,6 +63,26 @@
         'fa-palette', 'fa-music', 'fa-film', 'fa-gamepad', 'fa-rocket', 'fa-anchor'
     ];
 
+    /** Title font dropdown: value -> { fontFamily, label } for display and option styling */
+    const TITLE_FONT_OPTIONS = Object.freeze({
+        none: { fontFamily: 'inherit', label: 'None (hidden)' },
+        default: { fontFamily: "'Crimson Text', Georgia, serif", label: 'Default' },
+        crimson: { fontFamily: "'Crimson Text', Georgia, serif", label: 'Crimson Text' },
+        georgia: { fontFamily: "Georgia, 'Times New Roman', serif", label: 'Georgia' },
+        merriweather: { fontFamily: "'Merriweather', Georgia, serif", label: 'Merriweather' },
+        lora: { fontFamily: "'Lora', Georgia, serif", label: 'Lora' },
+        inter: { fontFamily: "'Inter', system-ui, sans-serif", label: 'Inter' },
+        nunito: { fontFamily: "'Nunito', system-ui, sans-serif", label: 'Nunito' },
+        poppins: { fontFamily: "'Poppins', system-ui, sans-serif", label: 'Poppins' },
+        roboto: { fontFamily: "'Roboto', system-ui, sans-serif", label: 'Roboto' }
+    });
+
+    function applyTitleFontSelectDisplay(selectEl) {
+        if (!selectEl || !selectEl.value) return;
+        const opt = TITLE_FONT_OPTIONS[selectEl.value];
+        if (opt) selectEl.style.fontFamily = opt.fontFamily;
+    }
+
     // Default settings
     const defaultSettings = Object.freeze({
         enabled: true,
@@ -82,7 +104,9 @@
         show_explicit: false,
         bar_font_size: 'default',  // 'small', 'default', 'large'
         bar_height: 'default',      // 'compact', 'default', 'max'
+        bar_title_font: 'default',  // 'none' (hidden) | 'default' | 'crimson'|'georgia'|'merriweather'|'lora' (serif) | 'inter'|'nunito'|'poppins'|'roboto' (sans)
         suggestion_length: 'short', // 'short' (2-3 sentences) or 'long' (4-6 sentences)
+        stream_suggestions: false,  // Stream generation per card (Ollama & OpenAI-compatible only)
         include_scenario: true,     // Include character scenario in context
         include_description: true,  // Include character description in context
         include_worldinfo: false,   // Include World Info lorebook in context
@@ -191,6 +215,16 @@
     // CONNECTION PROFILE UTILITIES (from EchoChamber pattern)
     // ============================================================
 
+    /** Escape string for safe use in HTML attributes and text (e.g. profile names with quotes) */
+    function escapeHtmlAttr(str) {
+        if (str == null || typeof str !== 'string') return '';
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
     function getConnectionProfiles() {
         try {
             const stContext = SillyTavern.getContext();
@@ -228,7 +262,8 @@
                 if (profiles.length) {
                     profiles.forEach(profile => {
                         const isSelected = currentValue === profile.name ? ' selected' : '';
-                        select.append(`<option value="${profile.name}"${isSelected}>${profile.name}</option>`);
+                        const safeName = escapeHtmlAttr(profile.name);
+                        select.append(`<option value="${safeName}"${isSelected}>${safeName}</option>`);
                     });
                 } else {
                     select.append('<option value="" disabled>No profiles found</option>');
@@ -286,8 +321,21 @@
 
         const customStyle = settings.custom_styles?.find(s => s.id === category);
         if (customStyle) {
-            promptCache[category] = customStyle.prompt;
-            return customStyle.prompt;
+            const prompt = (customStyle.prompt && String(customStyle.prompt).trim()) ? customStyle.prompt : null;
+            if (prompt) {
+                promptCache[category] = prompt;
+                return prompt;
+            }
+            warn(`Custom style "${category}" has no prompt; using template.`);
+            try {
+                const templateResp = await fetch(`${BASE_URL}/prompts/template.md?v=${Date.now()}`);
+                const fallback = templateResp.ok ? await templateResp.text() : 'Generate story suggestions.';
+                promptCache[category] = fallback;
+                return fallback;
+            } catch (_) {
+                promptCache[category] = 'Generate story suggestions.';
+                return 'Generate story suggestions.';
+            }
         }
 
         try {
@@ -510,9 +558,10 @@ GUIDELINES:
                 if (mode === 'story_beats') {
                     // Story Beats: 1 input = 1 suggestion (Classic behavior)
                     const dirList = customDirections.map((d, i) => `${i + 1}. ${d}`).join('\n');
-                    userPrompt = `[STORY CONTEXT]\n${contextBlock}\n\n[TASK]\nGenerate exactly ${customDirections.length} suggestions, one for each of the following directions.\n\nUSER DIRECTIONS:\n${dirList}\n\nFORMAT:\n[EMOJI] TITLE\nDESCRIPTION\n\nGUIDELINES:\n- PREVENT BLEED: Each suggestion must be strictly isolated to its corresponding input beat. Do NOT combine events from different beats unless explicitly requested.\n- Follow the specific direction for each suggestion EXACTLY.\n- Keep titles punchy and plain text (no asterisks).\n- ${settings.suggestion_length === 'long' ? 'Write 4-6 sentences per suggestion.' : 'Write 2-3 sentences per suggestion.'}\n- Do NOT include any preamble.`;
-                    const tokensPerSuggestion = settings.suggestion_length === 'long' ? 300 : 150;
-                    calculatedMaxTokens = Math.min(8192, Math.max(2048, customDirections.length * tokensPerSuggestion + 500));
+                    userPrompt = `[STORY CONTEXT]\n${contextBlock}\n\n[TASK]\nGenerate exactly ${customDirections.length} suggestions, one for each of the following directions.\n\nUSER DIRECTIONS:\n${dirList}\n\nFORMAT:\n[EMOJI] TITLE\nDESCRIPTION\n\nGUIDELINES:\n- PREVENT BLEED: Each suggestion must be strictly isolated to its corresponding input beat. Do NOT combine events from different beats unless explicitly requested.\n- Follow the specific direction for each suggestion EXACTLY.\n- Keep titles punchy and plain text (no asterisks).\n- ${settings.suggestion_length === 'long' ? 'Write 4-6 sentences per suggestion.' : 'Write 2-3 sentences per suggestion.'}\n- Do NOT include any preamble.${settings.stream_suggestions ? '\n\nSTREAMING: Output one complete suggestion at a time. Each suggestion MUST start with [EMOJI] TITLE then DESCRIPTION; end each with --- before the next. Do NOT repeat a title or copy content from one suggestion into another. Every suggestion is independent and self-contained.' : ''}`;
+                    // Be generous with token budgeting; otherwise the model may stop early (e.g. 4/6 suggestions).
+                    const tokensPerSuggestion = settings.suggestion_length === 'long' ? 400 : 280;
+                    calculatedMaxTokens = Math.min(8192, Math.max(2048, customDirections.length * tokensPerSuggestion + 800));
                 } else {
                     // Single Scene: Combined inputs = N suggestions (New behavior)
                     const combinedDirections = customDirections.join(' ');
@@ -520,22 +569,88 @@ GUIDELINES:
                         ? 'Each description should be 4-6 sentences, providing rich detail and context.'
                         : 'Each description should be 2-3 sentences, concise but evocative.';
 
-                    userPrompt = `[STORY CONTEXT]\n${contextBlock}\n\n[TASK]\nThe user has provided the following direction/scenario for the next scene:\n"${combinedDirections}"\n\nBased on this direction, generate exactly ${settings.suggestions_count} DISTINCT options or variations for how this scene could play out.\n${lengthInstruction}\n\nFORMAT:\n[EMOJI] TITLE\nDESCRIPTION\n\nGUIDELINES:\n- All suggestions must follow the user's direction but offer different execution/flavor.\n- Keep titles punchy and plain text.\n- Do NOT include any preamble.`;
-                    const tokensPerSuggestion = settings.suggestion_length === 'long' ? 250 : 120;
-                    calculatedMaxTokens = Math.min(8192, Math.max(2048, settings.suggestions_count * tokensPerSuggestion + 500));
+                    userPrompt = `[STORY CONTEXT]\n${contextBlock}\n\n[TASK]\nThe user has provided the following direction/scenario for the next scene:\n"${combinedDirections}"\n\nBased on this direction, generate exactly ${settings.suggestions_count} DISTINCT options or variations for how this scene could play out.\n${lengthInstruction}\n\nFORMAT:\n[EMOJI] TITLE\nDESCRIPTION\n\nGUIDELINES:\n- All suggestions must follow the user's direction but offer different execution/flavor.\n- Keep titles punchy and plain text.\n- Do NOT include any preamble.${settings.stream_suggestions ? '\n\nSTREAMING: Output one complete suggestion at a time. Each suggestion MUST start with [EMOJI] TITLE then DESCRIPTION; end each with --- before the next. Do NOT repeat a title or copy content from one suggestion into another. Every suggestion is independent and self-contained.' : ''}`;
+                    // Be generous with token budgeting; otherwise the model may stop early (e.g. 4/6 suggestions).
+                    const tokensPerSuggestion = settings.suggestion_length === 'long' ? 400 : 280;
+                    calculatedMaxTokens = Math.min(8192, Math.max(2048, settings.suggestions_count * tokensPerSuggestion + 800));
                 }
             } else {
                 const lengthInstruction = settings.suggestion_length === 'long'
                     ? 'Each description should be 4-6 sentences, providing rich detail and context.'
                     : 'Each description should be 2-3 sentences, concise but evocative.';
 
-                userPrompt = `[STORY CONTEXT]\n${contextBlock}\n\n[TASK]\nGenerate exactly ${settings.suggestions_count} distinct suggestions.\n${lengthInstruction}\nFollow the format specified in the system instructions exactly.\nIMPORTANT: Use PLAIN TEXT for titles - do NOT wrap titles in **asterisks**.\nDo NOT include any preamble.`;
-                const tokensPerSuggestion = settings.suggestion_length === 'long' ? 250 : 120;
-                calculatedMaxTokens = Math.min(8192, Math.max(2048, settings.suggestions_count * tokensPerSuggestion + 500));
+                userPrompt = `[STORY CONTEXT]\n${contextBlock}\n\n[TASK]\nGenerate exactly ${settings.suggestions_count} distinct suggestions.\n${lengthInstruction}\nFollow the format specified in the system instructions exactly.\nIMPORTANT: Use PLAIN TEXT for titles - do NOT wrap titles in **asterisks**.\nDo NOT include any preamble.${settings.stream_suggestions ? '\n\nSTREAMING: Output one complete suggestion at a time. Each suggestion MUST start with [EMOJI] TITLE then DESCRIPTION; end each with --- before the next. Do NOT repeat a title or copy content from one suggestion into another. Every suggestion is independent and self-contained.' : ''}`;
+                const tokensPerSuggestion = settings.suggestion_length === 'long' ? 400 : 280;
+                calculatedMaxTokens = Math.min(8192, Math.max(2048, settings.suggestions_count * tokensPerSuggestion + 800));
             }
 
             let result = '';
             log(`Calculated Max Tokens: ${calculatedMaxTokens}`);
+
+            // Fail fast: avoid silently falling back to default API when profile is selected but none chosen
+            if (settings.source === 'profile') {
+                if (!settings.preset || !String(settings.preset).trim()) {
+                    throw new Error('Please select a connection profile');
+                }
+            }
+
+            // Streaming path: Ollama & OpenAI always; Profile & Default try stream then fallback to non-streaming
+            if (settings.stream_suggestions) {
+                if (settings.source === 'ollama' || settings.source === 'openai') {
+                    try {
+                        await runStreamingGeneration({
+                            source: settings.source,
+                            categoryPrompt,
+                            userPrompt,
+                            calculatedMaxTokens,
+                            category,
+                            outputContainer,
+                            abortController
+                        });
+                    } catch (err) {
+                        if (err.name === 'AbortError' || (abortController && abortController.signal.aborted)) {
+                            showEmptyState('Generation cancelled by user', outputContainer);
+                        } else {
+                            error('Streaming generation failed:', err);
+                            showErrorState(err.message || 'API request failed', outputContainer);
+                        }
+                    } finally {
+                        isGenerating = false;
+                        abortController = null;
+                    }
+                    return;
+                }
+                if (settings.source === 'profile' || settings.source === 'default') {
+                    let streamSucceeded = false;
+                    try {
+                        await runStreamingGeneration({
+                            source: settings.source,
+                            categoryPrompt,
+                            userPrompt,
+                            calculatedMaxTokens,
+                            category,
+                            outputContainer,
+                            abortController
+                        });
+                        streamSucceeded = true;
+                    } catch (err) {
+                        if (err.name === 'AbortError' || (abortController && abortController.signal.aborted)) {
+                            showEmptyState('Generation cancelled by user', outputContainer);
+                            isGenerating = false;
+                            abortController = null;
+                            return;
+                        }
+                        console.log(STREAM_LOG, 'Fallback to non-streaming:', err?.message || String(err));
+                        console.log(STREAM_LOG, 'Stack:', err?.stack);
+                    }
+                    if (streamSucceeded) {
+                        isGenerating = false;
+                        abortController = null;
+                        return;
+                    }
+                    // Fall through to non-streaming path below
+                }
+            }
 
             if (settings.source === 'profile' && settings.preset) {
                 const cm = stContext.extensionSettings?.connectionManager;
@@ -786,6 +901,498 @@ GUIDELINES:
     }
 
     // ============================================================
+    // STREAMING: incremental parse and UI
+    // ============================================================
+
+    const emojiRegexStream = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2300}-\u{23FF}\u{2B50}\u{1FA00}-\u{1FAFF}]/gu;
+
+    /** Parse a single suggestion block into { emoji, title, description } or null */
+    function parseOneBlock(blockText) {
+        if (!blockText || typeof blockText !== 'string') return null;
+        let trimmed = blockText
+            .replace(/<(thought|think|thinking|reasoning|reason)>[\s\S]*?<\/\1>/gi, '')
+            .replace(/<[^>]*>/g, '')
+            .trim();
+        if (trimmed.length < 10) return null;
+
+        let emoji = '✨';
+        let title = '';
+        let description = '';
+
+        const emojiMatch = trimmed.match(emojiRegexStream);
+        if (emojiMatch) {
+            emoji = emojiMatch[0];
+            const emojiIndex = trimmed.indexOf(emoji);
+            const afterEmoji = trimmed.substring(emojiIndex + emoji.length).trim();
+            const newlineIndex = afterEmoji.indexOf('\n');
+            if (newlineIndex > 0) {
+                title = afterEmoji.substring(0, newlineIndex).trim();
+                description = afterEmoji.substring(newlineIndex + 1).trim();
+            } else {
+                title = afterEmoji;
+            }
+        } else {
+            const lines = trimmed.split('\n');
+            title = lines[0].trim();
+            description = lines.slice(1).join(' ').trim();
+        }
+        title = title.replace(/^\d+[\.\)]\s*/, '');
+        title = title.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1').replace(/^\*+\s*|\s*\*+$/g, '').trim().replace(/\s+/g, ' ');
+        description = description.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1').replace(/\s+/g, ' ').trim();
+        if (!title || title.length < 2 || title.length > 150) return null;
+        return {
+            emoji,
+            title: title.substring(0, 100),
+            description: description || 'Click to use this suggestion'
+        };
+    }
+
+    /** Split streamed buffer into complete blocks and current partial (for --- or double newline) */
+    function splitStreamBuffer(buffer) {
+        if (!buffer || !buffer.trim()) return { completeBlocks: [], partial: '' };
+        let cleaned = buffer
+            .replace(/<(thought|think|thinking|reasoning|reason)>[\s\S]*?<\/\1>/gi, '')
+            .replace(/<(thought|think|thinking|reasoning|reason)\/>/gi, '')
+            .trim();
+        const bySeparator = cleaned.split(/\n---\n|\n---|---\n|\n\n---\n\n/);
+        if (bySeparator.length > 1) {
+            const completeBlocks = bySeparator.slice(0, -1).map(s => s.trim()).filter(s => s.length >= 10);
+            const partial = bySeparator[bySeparator.length - 1].trim();
+            return { completeBlocks, partial };
+        }
+        const byDoubleNewline = cleaned.split(/\n\n+/);
+        if (byDoubleNewline.length > 1) {
+            const completeBlocks = byDoubleNewline.slice(0, -1).map(s => s.trim()).filter(s => s.length >= 10);
+            const partial = byDoubleNewline[byDoubleNewline.length - 1].trim();
+            return { completeBlocks, partial };
+        }
+        return { completeBlocks: [], partial: cleaned };
+    }
+
+    function showStreamingState(outputContainer, category) {
+        const body = outputContainer || jQuery('#pw_modal_body');
+        const allCategories = getAllCategories();
+        const catName = allCategories[category]?.name || category;
+        const count = Math.max(1, Math.min(12, Number(settings.suggestions_count) || 6));
+        const cardsHtml = Array.from({ length: count }, (_, i) => {
+            const isFirst = i === 0;
+            const stateClass = isFirst ? 'pw_streaming_active' : 'pw_streaming_waiting';
+            const title = isFirst ? 'Streaming…' : `Suggestion ${i + 1}`;
+            const desc = isFirst ? 'First suggestion is being generated…' : (i === 1 ? 'Up next' : 'Waiting…');
+            return `
+                <div class="pw_suggestion_card pw_streaming_slot ${stateClass}" data-slot="${i}" data-streaming="1">
+                    <div class="pw_card_header">
+                        <span class="pw_card_emoji pw_streaming_icon">${isFirst ? '<i class="fa-solid fa-pen-nib"></i>' : `<span class="pw_slot_num">${i + 1}</span>`}</span>
+                        <span class="pw_card_title">${title}</span>
+                    </div>
+                    <div class="pw_card_description pw_streaming_placeholder">${desc}</div>
+                    <div class="pw_card_actions" style="visibility: hidden;"></div>
+                </div>`;
+        }).join('');
+        body.html(`
+            <div class="pw_status">
+                <i class="fa-solid fa-circle-notch pw_spin"></i>
+                <span>Streaming ${catName} suggestions...</span>
+                <div class="pw_status_actions">
+                    <button class="pw_status_btn cancel pw_throb" id="pw_cancel_gen">
+                        <i class="fa-solid fa-xmark"></i> Cancel
+                    </button>
+                </div>
+            </div>
+            <div class="pw_suggestions_grid" id="pw_streaming_grid" data-streaming-slots="${count}">
+                ${cardsHtml}
+            </div>
+        `);
+        jQuery('#pw_cancel_gen').off('click').on('click', function (e) {
+            e.stopPropagation();
+            e.preventDefault();
+            if (abortController) abortController.abort();
+        });
+    }
+
+    function updateStreamingCardContent(partialText, outputContainer) {
+        const body = outputContainer || jQuery('#pw_modal_body');
+        const grid = body.find('#pw_streaming_grid');
+        if (!grid.length) return;
+        const card = grid.find('.pw_streaming_active');
+        if (!card.length) return;
+        const { DOMPurify } = SillyTavern.libs;
+        const safe = DOMPurify.sanitize(partialText || '', { ALLOWED_TAGS: [] });
+        const firstLine = safe.split('\n')[0].trim() || '…';
+        card.find('.pw_card_title').text(firstLine.substring(0, 100));
+        card.find('.pw_card_description').text(safe).removeClass('pw_streaming_placeholder');
+    }
+
+    function appendStreamingCardAsComplete(suggestion, outputContainer, suggestionsArray) {
+        const body = outputContainer || jQuery('#pw_modal_body');
+        const grid = body.find('#pw_streaming_grid');
+        if (!grid.length) return;
+        const card = grid.find('.pw_streaming_active');
+        const { DOMPurify } = SillyTavern.libs;
+        const safeTitle = DOMPurify.sanitize(suggestion.title, { ALLOWED_TAGS: [] });
+        const safeDesc = DOMPurify.sanitize(suggestion.description, { ALLOWED_TAGS: [] });
+        const safeEmoji = suggestion.emoji || '✨';
+        const index = suggestionsArray.length;
+        suggestionsArray.push(suggestion);
+
+        if (card.length) {
+            card.removeClass('pw_streaming_slot pw_streaming_active pw_streaming_waiting').removeAttr('data-streaming data-slot');
+            card.find('.pw_card_emoji').text(safeEmoji);
+            card.find('.pw_card_title').text(safeTitle);
+            card.find('.pw_card_description').text(safeDesc);
+            card.find('.pw_card_actions').attr('style', '').html(`
+                <button class="pw_card_action_btn" data-action="copy" title="Copy to clipboard"><i class="fa-solid fa-copy"></i> Copy</button>
+                <button class="pw_card_action_btn" data-action="insert" title="Insert into input field"><i class="fa-solid fa-plus"></i> Insert</button>
+                <button class="pw_card_action_btn primary" data-action="send" title="Insert and send"><i class="fa-solid fa-paper-plane"></i> Send</button>
+            `);
+            card.attr('data-index', index);
+            const nextActive = grid.find('.pw_streaming_waiting').first();
+            if (nextActive.length) {
+                nextActive.removeClass('pw_streaming_waiting').addClass('pw_streaming_active');
+                nextActive.find('.pw_card_emoji').html('<i class="fa-solid fa-pen-nib"></i>');
+                nextActive.find('.pw_card_title').text('Streaming…');
+                nextActive.find('.pw_card_description').text('').removeClass('pw_streaming_placeholder');
+            }
+        }
+
+        grid.find('.pw_suggestion_card[data-index]').off('click.pw_stream').on('click.pw_stream', function (e) {
+            const idx = parseInt(jQuery(this).data('index'), 10);
+            const s = suggestionsArray[idx];
+            if (!s) return;
+            const action = jQuery(e.target).closest('[data-action]').data('action');
+            if (action === 'copy') copyToClipboard(s.description);
+            else if (action === 'insert') insertSuggestion(s);
+            else if (action === 'send') sendSuggestion(s);
+        });
+    }
+
+    function removeStreamingPlaceholderCard(outputContainer) {
+        const body = outputContainer || jQuery('#pw_modal_body');
+        body.find('.pw_streaming_slot').remove();
+    }
+
+    /**
+     * Consume a ReadableStream (e.g. from Connection Profile / Gemini); detect SSE or NDJSON and push text into addContent.
+     * @param {ReadableStream} stream - response.body or any getReader()-able stream
+     * @param {function(string): void} addContent - called with extracted text (may be called many times)
+     * @param {function(string, boolean): void} onChunk - optional (chunkText, isFirst) for logging
+     */
+    async function consumeGenericStream(stream, addContent, onChunk) {
+        const reader = stream.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let first = true;
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+                if (trimmed.startsWith('data:')) {
+                    const dataStr = trimmed.slice(5).trim();
+                    if (dataStr === '[DONE]') continue;
+                    try {
+                        const obj = JSON.parse(dataStr);
+                        const delta = obj.choices?.[0]?.delta?.content;
+                        if (delta) {
+                            if (onChunk && first) { onChunk(delta, true); first = false; }
+                            addContent(delta);
+                        }
+                    } catch (_) { }
+                } else {
+                    try {
+                        const obj = JSON.parse(trimmed);
+                        if (obj.response != null) {
+                            if (onChunk && first) { onChunk(obj.response, true); first = false; }
+                            addContent(obj.response);
+                        }
+                    } catch (_) { }
+                }
+            }
+        }
+        if (buffer.trim()) {
+            if (buffer.trim().startsWith('data:')) {
+                try {
+                    const obj = JSON.parse(buffer.trim().slice(5).trim());
+                    const delta = obj.choices?.[0]?.delta?.content;
+                    if (delta) addContent(delta);
+                } catch (_) { }
+            } else {
+                try {
+                    const obj = JSON.parse(buffer.trim());
+                    if (obj.response != null) addContent(obj.response);
+                } catch (_) { addContent(buffer); }
+            }
+        }
+    }
+
+    async function runStreamingGeneration(opts) {
+        const { source, categoryPrompt, userPrompt, calculatedMaxTokens, category, outputContainer, abortController } = opts;
+        const body = outputContainer || jQuery('#pw_modal_body');
+        const suggestionsArray = [];
+        let contentBuffer = '';
+        let processedBlockCount = 0;
+        const maxSuggestions = settings.suggestions_count;
+
+        showStreamingState(outputContainer, category);
+        if (source === 'profile' || source === 'default') {
+            console.log(STREAM_LOG, source === 'profile' ? 'Connection Profile' : 'Main API', 'streaming attempt started. Copy these logs to debug.');
+        }
+
+        const processBuffer = () => {
+            const { completeBlocks, partial } = splitStreamBuffer(contentBuffer);
+            const newBlocks = completeBlocks.slice(processedBlockCount);
+            processedBlockCount = completeBlocks.length;
+            for (const block of newBlocks) {
+                if (suggestionsArray.length >= maxSuggestions) break;
+                const suggestion = parseOneBlock(block);
+                if (suggestion) {
+                    appendStreamingCardAsComplete(suggestion, outputContainer, suggestionsArray);
+                }
+            }
+            updateStreamingCardContent(partial, outputContainer);
+        };
+
+        try {
+            if (source === 'profile') {
+                const stContext = SillyTavern.getContext();
+                const cm = stContext?.extensionSettings?.connectionManager;
+                const profile = cm?.profiles?.find(p => p.name === settings.preset);
+                if (!profile) throw new Error(`Profile '${settings.preset}' not found`);
+                if (!stContext.ConnectionManagerRequestService) throw new Error('ConnectionManagerRequestService not available');
+                const messages = [
+                    { role: 'system', content: categoryPrompt },
+                    { role: 'user', content: userPrompt }
+                ];
+                const requestOpts = {
+                    stream: true,
+                    signal: abortController.signal,
+                    extractData: true,
+                    includePreset: true,
+                    includeInstruct: true
+                };
+                console.log(STREAM_LOG, 'Connection Profile: attempting stream=true', { profileName: profile.name, profileId: profile.id, maxTokens: calculatedMaxTokens, requestOptsKeys: Object.keys(requestOpts) });
+                let rawResponse = stContext.ConnectionManagerRequestService.sendRequest(profile.id, messages, calculatedMaxTokens, requestOpts);
+                let response = rawResponse && typeof rawResponse.then === 'function' ? await rawResponse : rawResponse;
+                if (typeof response === 'function') {
+                    console.log(STREAM_LOG, 'Connection Profile: response is a function (generator?), calling it to get iterator');
+                    response = response();
+                    if (response && typeof response.then === 'function') response = await response;
+                }
+                const isAsyncIterable = response != null && (typeof response[Symbol.asyncIterator] === 'function' || typeof response.next === 'function');
+                console.log(STREAM_LOG, 'Connection Profile: response received', { type: typeof response, constructor: response?.constructor?.name, hasBody: !!response?.body, hasGetReader: typeof response?.body?.getReader === 'function', hasContent: !!response?.content, contentLength: typeof response?.content === 'string' ? response.content.length : 0, isAsyncIterable });
+                if (response?.content != null && typeof response.content === 'string') {
+                    console.log(STREAM_LOG, 'Connection Profile: full content (non-streaming), using as single buffer. Length:', response.content.length);
+                    contentBuffer = response.content;
+                    processBuffer();
+                } else if (response && typeof response === 'string') {
+                    console.log(STREAM_LOG, 'Connection Profile: response is string (non-streaming). Length:', response.length);
+                    contentBuffer = response;
+                    processBuffer();
+                } else if (isAsyncIterable) {
+                    console.log(STREAM_LOG, 'Connection Profile: consuming response as async iterator (e.g. AsyncGenerator from Gemini)');
+                    let firstChunk = true;
+                    try {
+                        for await (const chunk of response) {
+                            if (abortController.signal.aborted) break;
+                            let text = '';
+                            if (typeof chunk === 'string') text = chunk;
+                            else if (chunk && typeof chunk === 'object') {
+                                text = chunk.choices?.[0]?.delta?.content ?? chunk.content ?? chunk.response ?? (typeof chunk.text === 'string' ? chunk.text : '');
+                            }
+                            if (text) {
+                                if (firstChunk) {
+                                    console.log(STREAM_LOG, 'Connection Profile: first chunk sample (first 200 chars):', JSON.stringify(String(text).slice(0, 200)));
+                                    firstChunk = false;
+                                }
+                                if (contentBuffer.length === 0) {
+                                    contentBuffer = text;
+                                } else if (text.startsWith(contentBuffer)) {
+                                    contentBuffer = text;
+                                } else {
+                                    contentBuffer += text;
+                                }
+                                processBuffer();
+                            }
+                        }
+                        console.log(STREAM_LOG, 'Connection Profile: async iterator finished. Total content length:', contentBuffer.length);
+                    } catch (iterErr) {
+                        console.log(STREAM_LOG, 'Connection Profile: async iterator error:', iterErr?.message || String(iterErr));
+                        throw iterErr;
+                    }
+                } else if (response?.body && typeof response.body.getReader === 'function') {
+                    console.log(STREAM_LOG, 'Connection Profile: consuming response.body as ReadableStream');
+                    await consumeGenericStream(response.body, (text) => { contentBuffer += text; processBuffer(); }, (chunk, isFirst) => {
+                        if (isFirst) console.log(STREAM_LOG, 'Connection Profile: first chunk sample (first 200 chars):', JSON.stringify(String(chunk).slice(0, 200)));
+                    });
+                    console.log(STREAM_LOG, 'Connection Profile: stream finished. Total content length:', contentBuffer.length);
+                } else if (response && typeof response.getReader === 'function') {
+                    console.log(STREAM_LOG, 'Connection Profile: consuming response as ReadableStream');
+                    await consumeGenericStream(response, (text) => { contentBuffer += text; processBuffer(); }, (chunk, isFirst) => {
+                        if (isFirst) console.log(STREAM_LOG, 'Connection Profile: first chunk sample (first 200 chars):', JSON.stringify(String(chunk).slice(0, 200)));
+                    });
+                    console.log(STREAM_LOG, 'Connection Profile: stream finished. Total content length:', contentBuffer.length);
+                } else {
+                    console.log(STREAM_LOG, 'Connection Profile: unknown response shape, attempting to extract text. Keys:', response ? Object.keys(response) : []);
+                    const text = response?.choices?.[0]?.message?.content ?? (typeof response === 'string' ? response : '');
+                    if (text) contentBuffer = text; processBuffer();
+                }
+            } else if (source === 'default') {
+                const stContext = SillyTavern.getContext();
+                const { generateRaw } = stContext;
+                if (!generateRaw) throw new Error('generateRaw not available in context');
+                console.log(STREAM_LOG, 'Main API: attempting streaming: true');
+                let rawResult = generateRaw({ systemPrompt: categoryPrompt, prompt: userPrompt, streaming: true });
+                const result = rawResult && typeof rawResult.then === 'function' ? await rawResult : rawResult;
+                console.log(STREAM_LOG, 'Main API: result received', { type: typeof result, constructor: result?.constructor?.name, hasGetReader: typeof result?.getReader === 'function', hasBody: !!result?.body, stringLength: typeof result === 'string' ? result.length : 0 });
+                if (typeof result === 'string') {
+                    console.log(STREAM_LOG, 'Main API: full string (non-streaming). Length:', result.length);
+                    contentBuffer = result;
+                    processBuffer();
+                } else if (result?.body && typeof result.body.getReader === 'function') {
+                    console.log(STREAM_LOG, 'Main API: consuming result.body as ReadableStream');
+                    await consumeGenericStream(result.body, (text) => { contentBuffer += text; processBuffer(); }, (chunk, isFirst) => {
+                        if (isFirst) console.log(STREAM_LOG, 'Main API: first chunk sample:', JSON.stringify(String(chunk).slice(0, 200)));
+                    });
+                } else if (result && typeof result.getReader === 'function') {
+                    console.log(STREAM_LOG, 'Main API: consuming result as ReadableStream');
+                    await consumeGenericStream(result, (text) => { contentBuffer += text; processBuffer(); }, (chunk, isFirst) => {
+                        if (isFirst) console.log(STREAM_LOG, 'Main API: first chunk sample:', JSON.stringify(String(chunk).slice(0, 200)));
+                    });
+                } else {
+                    console.log(STREAM_LOG, 'Main API: unknown result shape. Using as non-streaming.');
+                    contentBuffer = (result && typeof result === 'object' && result.content) ? result.content : String(result ?? '');
+                    processBuffer();
+                }
+            } else if (source === 'ollama') {
+                const baseUrl = (settings.ollama_url || 'http://localhost:11434').replace(/\/$/, '');
+                if (!settings.ollama_model) throw new Error('No Ollama model selected');
+                log(`Streaming with Ollama: ${settings.ollama_model}`);
+                const response = await fetch(`${baseUrl}/api/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: settings.ollama_model,
+                        system: categoryPrompt,
+                        prompt: userPrompt,
+                        stream: true,
+                        options: { num_ctx: 8192, num_predict: calculatedMaxTokens }
+                    }),
+                    signal: abortController.signal
+                });
+                if (!response.ok) throw new Error(`Ollama API error: ${response.status}`);
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let lineBuffer = '';
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    lineBuffer += decoder.decode(value, { stream: true });
+                    const lines = lineBuffer.split('\n');
+                    lineBuffer = lines.pop() || '';
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (!trimmed) continue;
+                        try {
+                            const obj = JSON.parse(trimmed);
+                            if (obj.response) contentBuffer += obj.response;
+                        } catch (_) { /* skip invalid JSON */ }
+                    }
+                    processBuffer();
+                }
+                if (lineBuffer.trim()) {
+                    try {
+                        const obj = JSON.parse(lineBuffer.trim());
+                        if (obj.response) contentBuffer += obj.response;
+                    } catch (_) { }
+                }
+            } else if (source === 'openai') {
+                const baseUrl = (settings.openai_url || 'http://localhost:1234/v1').replace(/\/$/, '');
+                log(`Streaming with OpenAI-compatible: ${baseUrl}`);
+                const headers = { 'Content-Type': 'application/json' };
+                if (settings.openai_key) headers['Authorization'] = `Bearer ${settings.openai_key}`;
+                const response = await fetch(`${baseUrl}/chat/completions`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        model: settings.openai_model || 'local-model',
+                        messages: [
+                            { role: 'system', content: categoryPrompt },
+                            { role: 'user', content: userPrompt }
+                        ],
+                        temperature: 0.8,
+                        max_tokens: calculatedMaxTokens,
+                        stream: true
+                    }),
+                    signal: abortController.signal
+                });
+                if (!response.ok) throw new Error(`API error: ${response.status}`);
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let sseBuffer = '';
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    sseBuffer += decoder.decode(value, { stream: true });
+                    const eventEnd = sseBuffer.indexOf('\n\n');
+                    if (eventEnd === -1) continue;
+                    const events = sseBuffer.split(/\n\n+/);
+                    sseBuffer = events.pop() || '';
+                    for (const event of events) {
+                        const lines = event.split('\n');
+                        for (const line of lines) {
+                            if (!line.startsWith('data:')) continue;
+                            const dataStr = line.slice(5).trim();
+                            if (dataStr === '[DONE]') continue;
+                            try {
+                                const obj = JSON.parse(dataStr);
+                                const delta = obj.choices?.[0]?.delta?.content;
+                                if (delta) contentBuffer += delta;
+                            } catch (_) { }
+                        }
+                    }
+                    processBuffer();
+                }
+            }
+        } finally {
+            // Process any remaining complete blocks and final partial
+            const { completeBlocks, partial } = splitStreamBuffer(contentBuffer);
+            const remainingBlocks = completeBlocks.slice(processedBlockCount);
+            for (const block of remainingBlocks) {
+                if (suggestionsArray.length >= maxSuggestions) break;
+                const suggestion = parseOneBlock(block);
+                if (suggestion) appendStreamingCardAsComplete(suggestion, outputContainer, suggestionsArray);
+            }
+            if (suggestionsArray.length < maxSuggestions && partial.trim().length >= 10) {
+                const tailSplit = splitStreamBuffer(partial);
+                for (const block of tailSplit.completeBlocks) {
+                    if (suggestionsArray.length >= maxSuggestions) break;
+                    const suggestion = parseOneBlock(block);
+                    if (suggestion) appendStreamingCardAsComplete(suggestion, outputContainer, suggestionsArray);
+                }
+                if (suggestionsArray.length < maxSuggestions && tailSplit.partial.trim().length >= 10) {
+                    const suggestion = parseOneBlock(tailSplit.partial);
+                    if (suggestion) appendStreamingCardAsComplete(suggestion, outputContainer, suggestionsArray);
+                }
+            }
+            removeStreamingPlaceholderCard(outputContainer);
+        }
+
+        if (abortController.signal.aborted) throw new DOMException('Aborted', 'AbortError');
+
+        if (suggestionsArray.length > 0) {
+            if (category !== 'director') cachedSuggestions[category] = suggestionsArray;
+            body.find('.pw_status').remove();
+        } else {
+            body.find('.pw_status').remove();
+            showEmptyState('No suggestions could be generated. Try again.', outputContainer);
+        }
+    }
+
+    // ============================================================
     // UI - ACTION BAR
     // ============================================================
 
@@ -893,9 +1500,10 @@ GUIDELINES:
 
         const fontClass = settings.bar_font_size !== 'default' ? ` pw_font_${settings.bar_font_size}` : '';
         const heightClass = settings.bar_height !== 'default' ? ` pw_height_${settings.bar_height}` : '';
+        const titleFontClass = settings.bar_title_font === 'none' ? ' pw_bar_title_none' : (settings.bar_title_font !== 'default' ? ` pw_bar_title_font_${settings.bar_title_font}` : '');
 
         const barHtml = `
-        <div class="pw_action_bar${minimized}${fontClass}${heightClass}">
+        <div class="pw_action_bar${minimized}${fontClass}${heightClass}${titleFontClass}">
             <span class="pw_bar_title">Pathweaver</span>
             <div class="pw_category_buttons">
                 ${builtinButtonsHtml}
@@ -1580,7 +2188,8 @@ GUIDELINES:
         let profileOptions = '<option value="">-- Select Profile --</option>';
         profiles.forEach(p => {
             const selected = settings.preset === p.name ? ' selected' : '';
-            profileOptions += `<option value="${p.name}"${selected}>${p.name}</option>`;
+            const safeName = escapeHtmlAttr(p.name);
+            profileOptions += `<option value="${safeName}"${selected}>${safeName}</option>`;
         });
 
         const modalHtml = `
@@ -1666,6 +2275,13 @@ GUIDELINES:
                                     </select>
                                 </div>
                             </div>
+                            <div class="pw_setting_row pw_setting_row_stream">
+                                <span class="pw_setting_label"><i class="fa-solid fa-stream"></i> Stream suggestions</span>
+                                <div class="pw_toggle ${settings.stream_suggestions ? 'active' : ''}" data-setting="stream_suggestions"></div>
+                            </div>
+                            <p class="pw_setting_hint pw_setting_stream_hint">
+                                Cards appear as each suggestion is generated. Works with Ollama and OpenAI-compatible APIs; Connection Profile may also support streaming.
+                            </p>
                         </div>
 
                         <div class="pw_settings_section">
@@ -1764,6 +2380,27 @@ GUIDELINES:
                                         <option value="compact" ${settings.bar_height === 'compact' ? 'selected' : ''}>Compact</option>
                                         <option value="default" ${settings.bar_height === 'default' ? 'selected' : ''}>Default</option>
                                         <option value="max" ${settings.bar_height === 'max' ? 'selected' : ''}>Max</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="pw_setting_row">
+                                <span class="pw_setting_label"><i class="fa-solid fa-font"></i> Title font</span>
+                                <div class="pw_setting_control">
+                                    <select id="pw_sm_bar_title_font" class="pw_select pw_title_font_select text_pole">
+                                        <option value="none" style="font-family: inherit" ${settings.bar_title_font === 'none' ? 'selected' : ''}>None (hidden)</option>
+                                        <option value="default" style="font-family: 'Crimson Text', Georgia, serif" ${settings.bar_title_font === 'default' ? 'selected' : ''}>Default</option>
+                                        <optgroup label="Serif">
+                                            <option value="crimson" style="font-family: 'Crimson Text', Georgia, serif" ${settings.bar_title_font === 'crimson' ? 'selected' : ''}>Crimson Text</option>
+                                            <option value="georgia" style="font-family: Georgia, 'Times New Roman', serif" ${settings.bar_title_font === 'georgia' ? 'selected' : ''}>Georgia</option>
+                                            <option value="merriweather" style="font-family: 'Merriweather', Georgia, serif" ${settings.bar_title_font === 'merriweather' ? 'selected' : ''}>Merriweather</option>
+                                            <option value="lora" style="font-family: 'Lora', Georgia, serif" ${settings.bar_title_font === 'lora' ? 'selected' : ''}>Lora</option>
+                                        </optgroup>
+                                        <optgroup label="Sans-serif">
+                                            <option value="inter" style="font-family: 'Inter', system-ui, sans-serif" ${settings.bar_title_font === 'inter' ? 'selected' : ''}>Inter</option>
+                                            <option value="nunito" style="font-family: 'Nunito', system-ui, sans-serif" ${settings.bar_title_font === 'nunito' ? 'selected' : ''}>Nunito</option>
+                                            <option value="poppins" style="font-family: 'Poppins', system-ui, sans-serif" ${settings.bar_title_font === 'poppins' ? 'selected' : ''}>Poppins</option>
+                                            <option value="roboto" style="font-family: 'Roboto', system-ui, sans-serif" ${settings.bar_title_font === 'roboto' ? 'selected' : ''}>Roboto</option>
+                                        </optgroup>
                                     </select>
                                 </div>
                             </div>
@@ -1872,6 +2509,16 @@ GUIDELINES:
             syncSettingsToPanel();
             createActionBar();
         });
+
+        // Bar title font
+        jQuery('#pw_sm_bar_title_font').on('change', function () {
+            settings.bar_title_font = this.value;
+            applyTitleFontSelectDisplay(this);
+            saveSettings();
+            syncSettingsToPanel();
+            createActionBar();
+        });
+        applyTitleFontSelectDisplay(document.getElementById('pw_sm_bar_title_font'));
 
         // Style editor opener
         jQuery('#pw_open_style_editor').on('click', () => openStyleEditor());
@@ -2423,7 +3070,8 @@ GUIDELINES:
         const profiles = getConnectionProfiles();
         profiles.forEach(p => {
             const selected = settings.preset === p.name ? ' selected' : '';
-            select.append(`<option value="${p.name}"${selected}>${p.name}</option>`);
+            const safeName = escapeHtmlAttr(p.name);
+            select.append(`<option value="${safeName}"${selected}>${safeName}</option>`);
         });
     }
 
@@ -2477,10 +3125,13 @@ GUIDELINES:
 
         jQuery('#pw_font_size').val(settings.bar_font_size);
         jQuery('#pw_bar_height').val(settings.bar_height);
+        jQuery('#pw_bar_title_font').val(settings.bar_title_font || 'default');
+        applyTitleFontSelectDisplay(document.getElementById('pw_bar_title_font'));
         // Context sources
         jQuery('#pw_include_scenario').prop('checked', settings.include_scenario);
         jQuery('#pw_include_description').prop('checked', settings.include_description);
         jQuery('#pw_include_worldinfo').prop('checked', settings.include_worldinfo);
+        jQuery('#pw_stream_suggestions').prop('checked', settings.stream_suggestions);
         updateProviderVisibility(settings.source);
     }
 
@@ -2496,8 +3147,11 @@ GUIDELINES:
         jQuery('#pw_sm_suggestions').val(settings.suggestions_count);
         jQuery('#pw_sm_context').val(settings.context_depth);
         jQuery('#pw_sm_suggestion_length').val(settings.suggestion_length);
+        jQuery('.pw_toggle[data-setting="stream_suggestions"]').toggleClass('active', settings.stream_suggestions);
         jQuery('#pw_sm_font_size').val(settings.bar_font_size);
         jQuery('#pw_sm_bar_height').val(settings.bar_height);
+        jQuery('#pw_sm_bar_title_font').val(settings.bar_title_font || 'default');
+        applyTitleFontSelectDisplay(document.getElementById('pw_sm_bar_title_font'));
         // Update toggles in modal
         jQuery('.pw_toggle[data-setting="enabled"]').toggleClass('active', settings.enabled);
         jQuery('.pw_toggle[data-setting="show_explicit"]').toggleClass('active', settings.show_explicit);
@@ -2633,6 +3287,15 @@ GUIDELINES:
             createActionBar();
         });
 
+        // Bar title font
+        jQuery('#pw_bar_title_font').on('change', function () {
+            settings.bar_title_font = this.value;
+            applyTitleFontSelectDisplay(this);
+            saveSettings();
+            syncSettingsToModal();
+            createActionBar();
+        });
+
         // Insert mode
         jQuery('#pw_insert_mode').on('change', function () {
             settings.insert_mode = this.checked;
@@ -2683,6 +3346,13 @@ GUIDELINES:
         // Suggestion length
         jQuery('#pw_suggestion_length').on('change', function () {
             settings.suggestion_length = this.value;
+            saveSettings();
+            syncSettingsToModal();
+        });
+
+        // Stream suggestions
+        jQuery('#pw_stream_suggestions').on('change', function () {
+            settings.stream_suggestions = this.checked;
             saveSettings();
             syncSettingsToModal();
         });
