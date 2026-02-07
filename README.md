@@ -54,12 +54,10 @@
 <p align="center">
   <a href="https://github.com/user-attachments/assets/323e15fa-5149-4c54-b1c9-2e64b0a7123a"><img src="https://github.com/user-attachments/assets/323e15fa-5149-4c54-b1c9-2e64b0a7123a" alt="Pathweaver - Settings" width="70%"></a>
   <br>
-  <sub><em>Context-Aware Suggestions based on the story or roleplay.
+  <sub><em>Each card with option to Copy (copies to clipboard), Insert (add to SillyTavern's input but doesn't send) or Send (immediately sends to the AI.)
 
 </em></sub>
 </p>
-
-<p>Each suggestion card include the option to Copy (copies to clipboard), Insert (add to SillyTavern's input but doesn't send) or Send (immediately sends to the AI.)</p>
 
 ---
 
@@ -260,6 +258,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 <p align="center">
   Made with ❤️ for the SillyTavern community
 </p>
+
 
 
 
