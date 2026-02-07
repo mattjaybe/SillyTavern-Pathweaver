@@ -59,6 +59,8 @@
 </em></sub>
 </p>
 
+<p>Each suggestion card include the option to Copy (copies to clipboard), Insert (add to SillyTavern's input but doesn't send) or Send (immediately sends to the AI.)</p>
+
 ---
 
 ## 🎮 How It Works
@@ -123,11 +125,13 @@ Access Pathweaver settings by clicking the ⚙️ gear icon on the right side of
 | **Ollama** | Connect directly to a local Ollama instance (default: `http://127.0.0.1:11434`). |
 | **OpenAI Compatible** | Connect to KoboldCPP, LM Studio, vLLM, or other OpenAI-compatible endpoints. |
 
-### Visual Settings
+### Settings
 
 - **Show Explicit**: Toggle the visibility of the "Explicit" (Fire icon) category.
 - **Button Size**: Compact, Default, or Max.
 - **Font Size**: Adjust the size of the text from Small, Default, or Large.
+- **Title Font**: Change the font of 'Pathweaver' on the bar, or hide it altogether.
+- **Stream Suggestions**: Cards appear in real-time as each suggestion is generated.
 - **Minimal Mode**: Arrow on the bar hides and shows Pathweaver.
 
 <p align="center">
@@ -256,6 +260,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 <p align="center">
   Made with ❤️ for the SillyTavern community
 </p>
+
 
 
 
