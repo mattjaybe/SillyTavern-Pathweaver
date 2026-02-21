@@ -5,7 +5,7 @@
 ## 🆕 What's New
 
 ### ***ver 1.2***
-- Option to hide the animated bar in the settings
+- Added option to hide the animated bar in the settings
 
 ### ***ver 1.1***
 - You can now enable streaming in settings, which streams the suggestions to each card one at a time rather than waiting for all of them to be filled. Works with Ollama, OpenAI-compatible endpoints, and any Connection Profile/Main API that supports streaming
@@ -269,6 +269,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 <p align="center">
   Made with ❤️ for the SillyTavern community
 </p>
+
 
 
 
