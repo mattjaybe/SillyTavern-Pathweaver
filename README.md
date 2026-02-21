@@ -4,6 +4,9 @@
 
 ## 🆕 What's New
 
+### ***ver 1.2***
+- Option to hide the animated bar in the settings
+
 ### ***ver 1.1***
 - You can now enable streaming in settings, which streams the suggestions to each card one at a time rather than waiting for all of them to be filled. Works with Ollama, OpenAI-compatible endpoints, and any Connection Profile/Main API that supports streaming
 - Setting to change the font of the title 'Pathweaver' on the bar, or even hide it
@@ -141,9 +144,9 @@ Access Pathweaver settings by clicking the ⚙️ gear icon on the right side of
 
 ---
 
-## EchoChamber
+## My Other SillyTavern Extensions: EchoChamber & Larson
 
-Be sure to check out my other extension for SillyTavern: [EchoChamber](https://github.com/mattjaybe/SillyTavern-EchoChamber/tree/main).
+### EchoChamber
 
 [EchoChamber](https://github.com/mattjaybe/SillyTavern-EchoChamber/tree/main) is a powerful extension that generates a live reaction feed alongside your story. Whether it's a salt-fueled Discord chat, a viral Twitter feed, dramatic breaking news, or a sarcastic MST3K roasting session—EchoChamber immerses you in the world with AI-generated audience reactions.
 
@@ -152,6 +155,14 @@ Be sure to check out my other extension for SillyTavern: [EchoChamber](https://g
   <br>
   <sub><em>Quickly and easily adjust the Pathweaver settings to your preferences.
 </em></sub>
+</p>
+
+### Larson
+
+<a href="https://github.com/mattjaybe/SillyTavern-Larson">Larson</a> is a beautiful animated status bar for SillyTavern with 8 unique styles (Gradient, Breathe, Pulse, Cylon, Segment, Glitch, Liquid, Convergence). Independent animations for Generating/Thinking/Idle states, custom theme creator, mobile-optimized UI, and smart LLM thinking detection.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/e9817bb3-23d1-48e8-acb2-ed29493cd77e" />
 </p>
 
 ---
@@ -258,6 +269,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 <p align="center">
   Made with ❤️ for the SillyTavern community
 </p>
+
 
 
 
