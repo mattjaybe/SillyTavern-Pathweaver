@@ -19,6 +19,13 @@
                 </span>
             </label>
 
+            <label class="checkbox_label pw_toggle_row" for="pw_hide_animated_bar">
+                <input id="pw_hide_animated_bar" type="checkbox" class="checkbox">
+                <span class="pw_toggle_label">
+                    <i class="fa-solid fa-eye-slash"></i> Hide Animated Bar
+                </span>
+            </label>
+
             <hr class="pw_divider">
 
             <!-- Generation Engine Section -->
@@ -165,12 +172,15 @@
                     <div></div>
                 </div>
 
-                <label class="checkbox_label pw_checkbox_row pw_stream_row" for="pw_stream_suggestions" style="margin-top: 8px;">
-                    <input id="pw_stream_suggestions" type="checkbox" class="checkbox" title="Stream cards as they generate">
+                <label class="checkbox_label pw_checkbox_row pw_stream_row" for="pw_stream_suggestions"
+                    style="margin-top: 8px;">
+                    <input id="pw_stream_suggestions" type="checkbox" class="checkbox"
+                        title="Stream cards as they generate">
                     <span><i class="fa-solid fa-stream"></i> Stream suggestions</span>
                 </label>
                 <p class="pw_setting_hint" style="margin: 4px 0 0 0; font-size: 0.8rem; opacity: 0.85;">
-                    Cards appear as each suggestion is generated. Works with Ollama and OpenAI-compatible APIs; Connection Profile may also support streaming.
+                    Cards appear as each suggestion is generated. Works with Ollama and OpenAI-compatible APIs;
+                    Connection Profile may also support streaming.
                 </p>
 
                 <h4 class="pw_section_title" style="margin-top: 15px; font-size: 0.9rem;">
@@ -244,19 +254,25 @@
                     <label for="pw_bar_title_font" class="pw_input_label">
                         <i class="fa-solid fa-font"></i> Title font
                     </label>
-                    <select id="pw_bar_title_font" class="text_pole pw_select pw_title_font_select" style="width: 100%;">
+                    <select id="pw_bar_title_font" class="text_pole pw_select pw_title_font_select"
+                        style="width: 100%;">
                         <option value="none" style="font-family: inherit">None (hidden)</option>
-                        <option value="default" selected style="font-family: 'Crimson Text', Georgia, serif">Default</option>
+                        <option value="default" selected style="font-family: 'Crimson Text', Georgia, serif">Default
+                        </option>
                         <optgroup label="Serif">
-                            <option value="crimson" style="font-family: 'Crimson Text', Georgia, serif">Crimson Text</option>
-                            <option value="georgia" style="font-family: Georgia, 'Times New Roman', serif">Georgia</option>
-                            <option value="merriweather" style="font-family: 'Merriweather', Georgia, serif">Merriweather</option>
+                            <option value="crimson" style="font-family: 'Crimson Text', Georgia, serif">Crimson Text
+                            </option>
+                            <option value="georgia" style="font-family: Georgia, 'Times New Roman', serif">Georgia
+                            </option>
+                            <option value="merriweather" style="font-family: 'Merriweather', Georgia, serif">
+                                Merriweather</option>
                             <option value="lora" style="font-family: 'Lora', Georgia, serif">Lora</option>
                         </optgroup>
                         <optgroup label="Sans-serif">
                             <option value="inter" style="font-family: 'Inter', system-ui, sans-serif">Inter</option>
                             <option value="nunito" style="font-family: 'Nunito', system-ui, sans-serif">Nunito</option>
-                            <option value="poppins" style="font-family: 'Poppins', system-ui, sans-serif">Poppins</option>
+                            <option value="poppins" style="font-family: 'Poppins', system-ui, sans-serif">Poppins
+                            </option>
                             <option value="roboto" style="font-family: 'Roboto', system-ui, sans-serif">Roboto</option>
                         </optgroup>
                     </select>

@@ -79,6 +79,10 @@
     display: none;
 }
 
+.pw_action_bar.pw_hide_animated_bar::before {
+    display: none !important;
+}
+
 /* Minimize button - positioned at top of bar */
 .pw_minimize_btn {
     position: absolute;
@@ -94,7 +98,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    z-index: 101;
+    z-index: 9999;
     transition: all var(--pw-transition);
     color: var(--pw-text-secondary);
     font-size: 0.7rem;
@@ -114,6 +118,7 @@
     border-right: 1px solid var(--pw-glass-border);
     border-top: 1px solid var(--pw-glass-border);
     background: var(--pw-glass-bg);
+    z-index: 9999;
 }
 
 .pw_minimize_btn:hover {
@@ -225,14 +230,37 @@
     display: none !important;
 }
 
-.pw_action_bar.pw_bar_title_font_crimson .pw_bar_title { font-family: 'Crimson Text', Georgia, serif; }
-.pw_action_bar.pw_bar_title_font_georgia .pw_bar_title { font-family: Georgia, 'Times New Roman', serif; }
-.pw_action_bar.pw_bar_title_font_merriweather .pw_bar_title { font-family: 'Merriweather', Georgia, serif; }
-.pw_action_bar.pw_bar_title_font_lora .pw_bar_title { font-family: 'Lora', Georgia, serif; }
-.pw_action_bar.pw_bar_title_font_inter .pw_bar_title { font-family: 'Inter', system-ui, sans-serif; }
-.pw_action_bar.pw_bar_title_font_nunito .pw_bar_title { font-family: 'Nunito', system-ui, sans-serif; }
-.pw_action_bar.pw_bar_title_font_poppins .pw_bar_title { font-family: 'Poppins', system-ui, sans-serif; }
-.pw_action_bar.pw_bar_title_font_roboto .pw_bar_title { font-family: 'Roboto', system-ui, sans-serif; }
+.pw_action_bar.pw_bar_title_font_crimson .pw_bar_title {
+    font-family: 'Crimson Text', Georgia, serif;
+}
+
+.pw_action_bar.pw_bar_title_font_georgia .pw_bar_title {
+    font-family: Georgia, 'Times New Roman', serif;
+}
+
+.pw_action_bar.pw_bar_title_font_merriweather .pw_bar_title {
+    font-family: 'Merriweather', Georgia, serif;
+}
+
+.pw_action_bar.pw_bar_title_font_lora .pw_bar_title {
+    font-family: 'Lora', Georgia, serif;
+}
+
+.pw_action_bar.pw_bar_title_font_inter .pw_bar_title {
+    font-family: 'Inter', system-ui, sans-serif;
+}
+
+.pw_action_bar.pw_bar_title_font_nunito .pw_bar_title {
+    font-family: 'Nunito', system-ui, sans-serif;
+}
+
+.pw_action_bar.pw_bar_title_font_poppins .pw_bar_title {
+    font-family: 'Poppins', system-ui, sans-serif;
+}
+
+.pw_action_bar.pw_bar_title_font_roboto .pw_bar_title {
+    font-family: 'Roboto', system-ui, sans-serif;
+}
 
 /* Category buttons container */
 .pw_category_buttons {
@@ -711,12 +739,10 @@
 }
 
 .pw_streaming_waiting {
-    background: linear-gradient(
-        135deg,
-        color-mix(in srgb, var(--pw-glass-bg) 85%, transparent) 0%,
-        color-mix(in srgb, var(--pw-accent) 8%, var(--pw-glass-bg)) 50%,
-        color-mix(in srgb, var(--pw-glass-bg) 85%, transparent) 100%
-    );
+    background: linear-gradient(135deg,
+            color-mix(in srgb, var(--pw-glass-bg) 85%, transparent) 0%,
+            color-mix(in srgb, var(--pw-accent) 8%, var(--pw-glass-bg)) 50%,
+            color-mix(in srgb, var(--pw-glass-bg) 85%, transparent) 100%);
     background-size: 200% 200%;
     animation: pw_glass_shimmer 2.5s ease-in-out infinite;
     border-color: var(--pw-glass-border);
@@ -760,18 +786,23 @@
 }
 
 @keyframes pw_glass_shimmer {
-    0%, 100% { background-position: 100% 50%; }
-    50% { background-position: 0% 50%; }
+
+    0%,
+    100% {
+        background-position: 100% 50%;
+    }
+
+    50% {
+        background-position: 0% 50%;
+    }
 }
 
 .pw_streaming_active {
-    background: linear-gradient(
-        110deg,
-        var(--pw-glass-bg) 0%,
-        color-mix(in srgb, var(--pw-accent) 12%, var(--pw-glass-bg)) 35%,
-        var(--pw-glass-bg) 70%,
-        color-mix(in srgb, var(--pw-accent) 8%, var(--pw-glass-bg)) 100%
-    );
+    background: linear-gradient(110deg,
+            var(--pw-glass-bg) 0%,
+            color-mix(in srgb, var(--pw-accent) 12%, var(--pw-glass-bg)) 35%,
+            var(--pw-glass-bg) 70%,
+            color-mix(in srgb, var(--pw-accent) 8%, var(--pw-glass-bg)) 100%);
     background-size: 200% 100%;
     animation: pw_streaming_beam 2s ease-in-out infinite;
     border-color: color-mix(in srgb, var(--pw-accent) 50%, var(--pw-glass-border));
@@ -794,13 +825,29 @@
 }
 
 @keyframes pw_streaming_beam {
-    0%, 100% { background-position: 100% 0; }
-    50% { background-position: 0% 0; }
+
+    0%,
+    100% {
+        background-position: 100% 0;
+    }
+
+    50% {
+        background-position: 0% 0;
+    }
 }
 
 @keyframes pw_pulse_emoji {
-    0%, 100% { opacity: 0.7; transform: scale(1); }
-    50% { opacity: 1; transform: scale(1.05); }
+
+    0%,
+    100% {
+        opacity: 0.7;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
 }
 
 /* ============================================================

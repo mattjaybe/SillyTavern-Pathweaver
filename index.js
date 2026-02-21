@@ -110,7 +110,8 @@
         include_scenario: true,     // Include character scenario in context
         include_description: true,  // Include character description in context
         include_worldinfo: false,   // Include World Info lorebook in context
-        custom_styles: []
+        custom_styles: [],
+        hide_animated_bar: false
     });
 
 
@@ -1502,8 +1503,9 @@ GUIDELINES:
         const heightClass = settings.bar_height !== 'default' ? ` pw_height_${settings.bar_height}` : '';
         const titleFontClass = settings.bar_title_font === 'none' ? ' pw_bar_title_none' : (settings.bar_title_font !== 'default' ? ` pw_bar_title_font_${settings.bar_title_font}` : '');
 
+        const hideAnimatedBarClass = settings.hide_animated_bar ? ' pw_hide_animated_bar' : '';
         const barHtml = `
-        <div class="pw_action_bar${minimized}${fontClass}${heightClass}${titleFontClass}">
+        <div class="pw_action_bar${minimized}${fontClass}${heightClass}${titleFontClass}${hideAnimatedBarClass}">
             <span class="pw_bar_title">Pathweaver</span>
             <div class="pw_category_buttons">
                 ${builtinButtonsHtml}
@@ -2214,6 +2216,10 @@ GUIDELINES:
                                 <div class="pw_toggle ${settings.enabled ? 'active' : ''}" data-setting="enabled"></div>
                             </div>
                             <div class="pw_setting_row">
+                                <span class="pw_setting_label"><i class="fa-solid fa-eye-slash"></i> Hide Animated Bar</span>
+                                <div class="pw_toggle ${settings.hide_animated_bar ? 'active' : ''}" data-setting="hide_animated_bar"></div>
+                            </div>
+                            <div class="pw_setting_row">
                                 <span class="pw_setting_label"><i class="fa-solid fa-plus-circle"></i> Insert Mode (Append)</span>
                                 <div class="pw_toggle ${settings.insert_mode ? 'active' : ''}" data-setting="insert_mode"></div>
                             </div>
@@ -2442,6 +2448,9 @@ GUIDELINES:
                 createActionBar();
             }
             if (setting === 'show_explicit') createActionBar();
+            if (setting === 'hide_animated_bar') {
+                jQuery('.pw_action_bar').toggleClass('pw_hide_animated_bar', settings.hide_animated_bar);
+            }
 
             if (setting === 'insert_type_enabled') {
                 if (settings[setting]) jQuery('#pw_sm_insert_type_options').css('display', 'flex');
@@ -3028,6 +3037,7 @@ GUIDELINES:
         jQuery('#pw_bar_height').val(settings.bar_height);
         jQuery('#pw_insert_mode').prop('checked', settings.insert_mode);
         jQuery('#pw_show_explicit').prop('checked', settings.show_explicit);
+        jQuery('#pw_hide_animated_bar').prop('checked', settings.hide_animated_bar);
 
         jQuery('#pw_insert_type_enabled').prop('checked', settings.insert_type_enabled);
         jQuery('#pw_insert_type_ooc').prop('checked', settings.insert_type_ooc);
@@ -3115,6 +3125,7 @@ GUIDELINES:
         jQuery('#pw_suggestion_length').val(settings.suggestion_length);
         jQuery('#pw_insert_mode').prop('checked', settings.insert_mode);
         jQuery('#pw_show_explicit').prop('checked', settings.show_explicit);
+        jQuery('#pw_hide_animated_bar').prop('checked', settings.hide_animated_bar);
 
         jQuery('#pw_insert_type_enabled').prop('checked', settings.insert_type_enabled);
         jQuery('#pw_insert_type_ooc').prop('checked', settings.insert_type_ooc);
@@ -3156,6 +3167,7 @@ GUIDELINES:
         jQuery('.pw_toggle[data-setting="enabled"]').toggleClass('active', settings.enabled);
         jQuery('.pw_toggle[data-setting="show_explicit"]').toggleClass('active', settings.show_explicit);
         jQuery('.pw_toggle[data-setting="insert_mode"]').toggleClass('active', settings.insert_mode);
+        jQuery('.pw_toggle[data-setting="hide_animated_bar"]').toggleClass('active', settings.hide_animated_bar);
 
         jQuery('.pw_toggle[data-setting="insert_type_enabled"]').toggleClass('active', settings.insert_type_enabled);
         if (settings.insert_type_enabled) jQuery('#pw_sm_insert_type_options').css('display', 'flex');
@@ -3311,6 +3323,16 @@ GUIDELINES:
             createActionBar();
         });
 
+
+
+        // Hide Animated Bar
+        jQuery('#pw_hide_animated_bar').on('change', function () {
+            settings.hide_animated_bar = this.checked;
+            saveSettings();
+            syncSettingsToModal();
+            jQuery('.pw_action_bar').toggleClass('pw_hide_animated_bar', settings.hide_animated_bar);
+        });
+
         // Insert Type Enabled
         jQuery('#pw_insert_type_enabled').on('change', function () {
             settings.insert_type_enabled = this.checked;
@@ -3382,6 +3404,8 @@ GUIDELINES:
         jQuery('#pw_open_editor_settings').on('click', function () {
             openStyleEditor();
         });
+
+        createActionBar();
     }
 
     // ============================================================

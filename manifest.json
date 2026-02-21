@@ -5,8 +5,8 @@
     "optional": [],
     "js": "index.js",
     "css": "style.css",
-    "author": "Antigravity",
-    "version": "1.0.6",
+    "author": "mattjaybe",
+    "version": "1.2",
     "homePage": "https://github.com/mattjaybe/SillyTavern-Pathweaver",
     "auto_update": true
 }
