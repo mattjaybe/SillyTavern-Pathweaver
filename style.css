@@ -43,7 +43,7 @@
     border-top: 1px solid var(--pw-glass-border);
     border-bottom: 1px solid var(--pw-glass-border);
     position: relative;
-    z-index: 200;
+    z-index: 200000;
     min-height: 44px;
     transition: all 0.3s ease;
 }
@@ -53,6 +53,10 @@
     padding: 0;
     overflow: visible;
     /* Changed from hidden to allow button to be visible */
+    /* Raise z-index when minimized so the restore button appears above
+       other extension overlays (e.g. Larson's touch overlay at z-index ~100002).
+       Only needed when minimized since the bar collapses to just the button. */
+    z-index: 200000;
 }
 
 .pw_action_bar.minimized>*:not(.pw_minimize_btn) {
@@ -98,7 +102,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    z-index: 9999;
+    z-index: 200000;
     transition: all var(--pw-transition);
     color: var(--pw-text-secondary);
     font-size: 0.7rem;
@@ -118,7 +122,7 @@
     border-right: 1px solid var(--pw-glass-border);
     border-top: 1px solid var(--pw-glass-border);
     background: var(--pw-glass-bg);
-    z-index: 9999;
+    z-index: 200000;
 }
 
 .pw_minimize_btn:hover {
