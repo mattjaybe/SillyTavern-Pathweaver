@@ -2508,24 +2508,31 @@ GUIDELINES:
                                 <span class="pw_setting_label"><i class="fa-solid fa-shuffle"></i> Randomize depth</span>
                                 <div class="pw_toggle ${settings.surprise_randomize ? 'active' : ''}" data-setting="surprise_randomize"></div>
                             </div>
-                            <p class="pw_setting_hint" style="margin: 2px 0 10px 0; font-size: 0.78rem; opacity: 0.8;">
-                                When on, picks a random depth in the range below. When off, uses the minimum value as a fixed depth.
-                            </p>
-                            <div class="pw_setting_row pw_surprise_depth_range_row">
-                                <span class="pw_setting_label"><i class="fa-solid fa-clock-rotate-left"></i> Min messages</span>
-                                <div class="pw_setting_control">
-                                    <select id="pw_sm_surprise_depth_min" class="pw_select text_pole">
-                                        ${[2,3,4,5,6,7,8,9,10,11,12].map(n => `<option value="${n}" ${settings.surprise_depth_min == n ? 'selected' : ''}>${n}</option>`).join('')}
-                                    </select>
+                            <div id="pw_sm_surprise_range_rows" style="${settings.surprise_randomize ? '' : 'display:none;'}">
+                                <p class="pw_setting_hint" style="margin: 2px 0 10px 0; font-size: 0.78rem; opacity: 0.8;">
+                                    Picks a random depth within this range each time.
+                                </p>
+                                <div class="pw_setting_row pw_surprise_depth_range_row">
+                                    <span class="pw_setting_label"><i class="fa-solid fa-clock-rotate-left"></i> Min messages</span>
+                                    <div class="pw_setting_control">
+                                        <select id="pw_sm_surprise_depth_min" class="pw_select text_pole">
+                                            ${[2,3,4,5,6,7,8,9,10,11,12].map(n => `<option value="${n}" ${settings.surprise_depth_min == n ? 'selected' : ''}>${n}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="pw_setting_row pw_surprise_depth_range_row">
+                                    <span class="pw_setting_label"><i class="fa-solid fa-clock-rotate-left"></i> Max messages</span>
+                                    <div class="pw_setting_control">
+                                        <select id="pw_sm_surprise_depth_max" class="pw_select text_pole">
+                                            ${[2,3,4,5,6,7,8,9,10,11,12].map(n => `<option value="${n}" ${settings.surprise_depth_max == n ? 'selected' : ''}>${n}</option>`).join('')}
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="pw_setting_row pw_surprise_depth_range_row">
-                                <span class="pw_setting_label"><i class="fa-solid fa-clock-rotate-left"></i> Max messages</span>
-                                <div class="pw_setting_control">
-                                    <select id="pw_sm_surprise_depth_max" class="pw_select text_pole">
-                                        ${[2,3,4,5,6,7,8,9,10,11,12].map(n => `<option value="${n}" ${settings.surprise_depth_max == n ? 'selected' : ''}>${n}</option>`).join('')}
-                                    </select>
-                                </div>
+                            <div id="pw_sm_surprise_fixed_hint" style="${settings.surprise_randomize ? 'display:none;' : ''}">
+                                <p class="pw_setting_hint" style="margin: 2px 0 0; font-size: 0.78rem; opacity: 0.8;">
+                                    Uses a fixed depth of <strong>${settings.surprise_depth_min}</strong> messages.
+                                </p>
                             </div>
                         </div>
 
@@ -2582,6 +2589,18 @@ GUIDELINES:
             if (setting === 'insert_type_director' && settings.insert_type_director) {
                 settings.insert_type_ooc = false;
                 jQuery('.pw_toggle[data-setting="insert_type_ooc"]').removeClass('active');
+            }
+
+            // Surprise Me: show/hide range rows based on randomize toggle
+            if (setting === 'surprise_randomize') {
+                if (settings.surprise_randomize) {
+                    jQuery('#pw_sm_surprise_range_rows').show();
+                    jQuery('#pw_sm_surprise_fixed_hint').hide();
+                } else {
+                    jQuery('#pw_sm_surprise_range_rows').hide();
+                    jQuery('#pw_sm_surprise_fixed_hint').show();
+                    jQuery('#pw_sm_surprise_fixed_hint p strong').text(settings.surprise_depth_min);
+                }
             }
 
             saveSettings();
@@ -3637,6 +3656,14 @@ GUIDELINES:
         jQuery('#pw_surprise_randomize').prop('checked', settings.surprise_randomize);
         jQuery('#pw_surprise_depth_min').val(settings.surprise_depth_min);
         jQuery('#pw_surprise_depth_max').val(settings.surprise_depth_max);
+        if (settings.surprise_randomize) {
+            jQuery('#pw_surprise_range_rows').show();
+            jQuery('#pw_surprise_fixed_hint').hide();
+        } else {
+            jQuery('#pw_surprise_range_rows').hide();
+            jQuery('#pw_surprise_fixed_hint').show();
+            jQuery('#pw_surprise_fixed_depth_label').text(settings.surprise_depth_min);
+        }
         updateProviderVisibility(settings.source);
     }
 
@@ -3674,6 +3701,14 @@ GUIDELINES:
         jQuery('.pw_toggle[data-setting="surprise_randomize"]').toggleClass('active', settings.surprise_randomize);
         jQuery('#pw_sm_surprise_depth_min').val(settings.surprise_depth_min);
         jQuery('#pw_sm_surprise_depth_max').val(settings.surprise_depth_max);
+        if (settings.surprise_randomize) {
+            jQuery('#pw_sm_surprise_range_rows').show();
+            jQuery('#pw_sm_surprise_fixed_hint').hide();
+        } else {
+            jQuery('#pw_sm_surprise_range_rows').hide();
+            jQuery('#pw_sm_surprise_fixed_hint').show();
+            jQuery('#pw_sm_surprise_fixed_hint p strong').text(settings.surprise_depth_min);
+        }
 
         // Context sources toggles
         jQuery('.pw_toggle[data-setting="include_scenario"]').toggleClass('active', settings.include_scenario);
@@ -3907,6 +3942,14 @@ GUIDELINES:
         // Surprise Me: randomize toggle
         jQuery('#pw_surprise_randomize').on('change', function () {
             settings.surprise_randomize = this.checked;
+            if (settings.surprise_randomize) {
+                jQuery('#pw_surprise_range_rows').show();
+                jQuery('#pw_surprise_fixed_hint').hide();
+            } else {
+                jQuery('#pw_surprise_range_rows').hide();
+                jQuery('#pw_surprise_fixed_hint').show();
+                jQuery('#pw_surprise_fixed_depth_label').text(settings.surprise_depth_min);
+            }
             saveSettings();
             syncSettingsToModal();
         });
