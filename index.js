@@ -111,7 +111,9 @@
         include_description: true,  // Include character description in context
         include_worldinfo: false,   // Include World Info lorebook in context
         custom_styles: [],
-        hide_animated_bar: false
+        hide_animated_bar: false,
+        surprise_depth: 4,          // messages away to inject (2-12), used when surprise_randomize is false
+        surprise_randomize: true    // randomize depth between 2 and 12
     });
 
 
@@ -1546,7 +1548,7 @@ GUIDELINES:
                 <div class="pw_dropdown_menu pw_surprise_menu">
                     <div class="pw_surprise_menu_header">
                         <i class="fa-solid fa-wand-sparkles"></i> Surprise Me
-                        <span class="pw_surprise_menu_hint">Pick a style to secretly arm a twist...</span>
+                        <span class="pw_surprise_menu_hint">Pick a style to secretly add a suggestion...</span>
                     </div>
                     ${surpriseItems}
                     ${activeSurprise ? `<div class="pw_surprise_active_info">
@@ -1570,9 +1572,9 @@ GUIDELINES:
             <span class="pw_bar_title">Pathweaver</span>
             <div class="pw_category_buttons">
                 ${builtinButtonsHtml}
+                ${surpriseDropdownHtml}
                 ${customDropdownHtml}
                 ${genreDropdownHtml}
-                ${surpriseDropdownHtml}
             </div>
             <select class="pw_category_dropdown" title="Select a suggestion style">
                 <option value="" disabled selected>Style...</option>
@@ -2508,6 +2510,30 @@ GUIDELINES:
                             </button>
                         </div>
 
+                        <div class="pw_settings_section">
+                            <h4 class="pw_settings_section_title" style="color: var(--pw-silver, #a0aec0);">
+                                <i class="fa-solid fa-wand-sparkles"></i> Surprise Me
+                            </h4>
+                            <p style="color: var(--pw-text-muted); font-size: 0.85rem; margin-bottom: 12px;">
+                                Controls when the hidden suggestion is injected into the chat context.
+                            </p>
+                            <div class="pw_setting_row">
+                                <span class="pw_setting_label"><i class="fa-solid fa-shuffle"></i> Randomize depth</span>
+                                <div class="pw_toggle ${settings.surprise_randomize ? 'active' : ''}" data-setting="surprise_randomize"></div>
+                            </div>
+                            <p class="pw_setting_hint" style="margin: 2px 0 10px 0; font-size: 0.78rem; opacity: 0.8;">
+                                When on, picks a random depth between 2 and 12 messages. When off, uses the value below.
+                            </p>
+                            <div class="pw_setting_row" id="pw_sm_surprise_depth_row" style="${settings.surprise_randomize ? 'opacity:0.4; pointer-events:none;' : ''}">
+                                <span class="pw_setting_label"><i class="fa-solid fa-clock-rotate-left"></i> Messages away</span>
+                                <div class="pw_setting_control">
+                                    <select id="pw_sm_surprise_depth" class="pw_select text_pole">
+                                        ${[2,3,4,5,6,7,8,9,10,11,12].map(n => `<option value="${n}" ${settings.surprise_depth == n ? 'selected' : ''}>${n} messages</option>`).join('')}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -2586,6 +2612,24 @@ GUIDELINES:
 
         // Suggestion length
         jQuery('#pw_sm_suggestion_length').on('change', function () { settings.suggestion_length = this.value; saveSettings(); syncSettingsToPanel(); });
+
+        // Surprise Me: randomize toggle
+        jQuery('.pw_toggle[data-setting="surprise_randomize"]').on('click', function () {
+            settings.surprise_randomize = !settings.surprise_randomize;
+            jQuery(this).toggleClass('active', settings.surprise_randomize);
+            jQuery('#pw_sm_surprise_depth_row').css(settings.surprise_randomize
+                ? { opacity: '0.4', 'pointer-events': 'none' }
+                : { opacity: '1', 'pointer-events': 'auto' });
+            saveSettings();
+            syncSettingsToPanel();
+        });
+
+        // Surprise Me: depth select
+        jQuery('#pw_sm_surprise_depth').on('change', function () {
+            settings.surprise_depth = parseInt(this.value) || 4;
+            saveSettings();
+            syncSettingsToPanel();
+        });
 
         // Font size
         jQuery('#pw_sm_font_size').on('change', function () {
@@ -3384,8 +3428,10 @@ GUIDELINES:
 
             if (signal.aborted) return;
 
-            // Pick a random depth between 2 and 6
-            const depth = Math.floor(Math.random() * 5) + 2; // 2, 3, 4, 5, or 6
+            // Pick depth: random 2-12 if randomize is on, otherwise use the configured value
+            const depth = settings.surprise_randomize
+                ? Math.floor(Math.random() * 11) + 2  // 2 through 12
+                : Math.max(2, Math.min(12, settings.surprise_depth || 4));
 
             const injected = injectSurprisePrompt(text, depth);
             if (!injected) throw new Error('Failed to inject surprise into context');
@@ -3570,6 +3616,12 @@ GUIDELINES:
         jQuery('#pw_include_description').prop('checked', settings.include_description);
         jQuery('#pw_include_worldinfo').prop('checked', settings.include_worldinfo);
         jQuery('#pw_stream_suggestions').prop('checked', settings.stream_suggestions);
+        // Surprise Me
+        jQuery('#pw_surprise_randomize').prop('checked', settings.surprise_randomize);
+        jQuery('#pw_surprise_depth').val(settings.surprise_depth);
+        jQuery('#pw_surprise_depth_row').css(settings.surprise_randomize
+            ? { opacity: '0.4', 'pointer-events': 'none' }
+            : { opacity: '1', 'pointer-events': 'auto' });
         updateProviderVisibility(settings.source);
     }
 
@@ -3602,6 +3654,13 @@ GUIDELINES:
 
         jQuery('.pw_toggle[data-setting="insert_type_ooc"]').toggleClass('active', settings.insert_type_ooc);
         jQuery('.pw_toggle[data-setting="insert_type_director"]').toggleClass('active', settings.insert_type_director);
+
+        // Surprise Me
+        jQuery('.pw_toggle[data-setting="surprise_randomize"]').toggleClass('active', settings.surprise_randomize);
+        jQuery('#pw_sm_surprise_depth').val(settings.surprise_depth);
+        jQuery('#pw_sm_surprise_depth_row').css(settings.surprise_randomize
+            ? { opacity: '0.4', 'pointer-events': 'none' }
+            : { opacity: '1', 'pointer-events': 'auto' });
 
         // Context sources toggles
         jQuery('.pw_toggle[data-setting="include_scenario"]').toggleClass('active', settings.include_scenario);
@@ -3830,6 +3889,23 @@ GUIDELINES:
         // Open Style Editor from settings
         jQuery('#pw_open_editor_settings').on('click', function () {
             openStyleEditor();
+        });
+
+        // Surprise Me: randomize toggle
+        jQuery('#pw_surprise_randomize').on('change', function () {
+            settings.surprise_randomize = this.checked;
+            jQuery('#pw_surprise_depth_row').css(settings.surprise_randomize
+                ? { opacity: '0.4', 'pointer-events': 'none' }
+                : { opacity: '1', 'pointer-events': 'auto' });
+            saveSettings();
+            syncSettingsToModal();
+        });
+
+        // Surprise Me: depth select
+        jQuery('#pw_surprise_depth').on('change', function () {
+            settings.surprise_depth = parseInt(this.value) || 4;
+            saveSettings();
+            syncSettingsToModal();
         });
 
         createActionBar();

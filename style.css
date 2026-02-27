@@ -3099,30 +3099,35 @@
    SURPRISE FEATURE
    ============================================================ */
 
-/* Surprise button - distinct sparkle color */
+/* Silver color token for Surprise Me */
+:root {
+    --pw-silver: #a0aec0;
+}
+
+/* Surprise button - silver appearance (Director is gold) */
 .pw_surprise_btn {
     position: relative;
-    color: var(--pw-warning, #f59e0b) !important;
-    border-color: color-mix(in srgb, var(--pw-warning, #f59e0b) 40%, transparent) !important;
+    color: var(--pw-silver, #a0aec0) !important;
+    border-color: color-mix(in srgb, var(--pw-silver, #a0aec0) 40%, transparent) !important;
 }
 
 .pw_surprise_btn:hover,
 .pw_surprise_btn.active {
-    background: color-mix(in srgb, var(--pw-warning, #f59e0b) 15%, transparent) !important;
-    border-color: var(--pw-warning, #f59e0b) !important;
-    box-shadow: 0 0 10px color-mix(in srgb, var(--pw-warning, #f59e0b) 30%, transparent) !important;
+    background: color-mix(in srgb, var(--pw-silver, #a0aec0) 15%, transparent) !important;
+    border-color: var(--pw-silver, #a0aec0) !important;
+    box-shadow: 0 0 10px color-mix(in srgb, var(--pw-silver, #a0aec0) 30%, transparent) !important;
 }
 
-/* Armed state - pulsing glow when a surprise is active */
+/* Armed state - pulsing silver glow when a surprise is active */
 .pw_surprise_btn.pw_surprise_armed {
     animation: pw_surprise_pulse 2s ease-in-out infinite;
-    border-color: var(--pw-warning, #f59e0b) !important;
-    background: color-mix(in srgb, var(--pw-warning, #f59e0b) 12%, transparent) !important;
+    border-color: var(--pw-silver, #a0aec0) !important;
+    background: color-mix(in srgb, var(--pw-silver, #a0aec0) 12%, transparent) !important;
 }
 
 @keyframes pw_surprise_pulse {
-    0%, 100% { box-shadow: 0 0 6px color-mix(in srgb, var(--pw-warning, #f59e0b) 40%, transparent); }
-    50% { box-shadow: 0 0 16px color-mix(in srgb, var(--pw-warning, #f59e0b) 70%, transparent); }
+    0%, 100% { box-shadow: 0 0 6px color-mix(in srgb, var(--pw-silver, #a0aec0) 40%, transparent); }
+    50% { box-shadow: 0 0 16px color-mix(in srgb, var(--pw-silver, #a0aec0) 70%, transparent); }
 }
 
 /* Active dot indicator on the button */
@@ -3159,7 +3164,7 @@
     gap: 6px;
     padding: 8px 12px 6px;
     margin-bottom: 4px;
-    color: var(--pw-warning, #f59e0b);
+    color: var(--pw-silver, #a0aec0);
     font-weight: 600;
     font-size: 0.9rem;
 }
@@ -3230,14 +3235,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: color-mix(in srgb, var(--pw-warning, #f59e0b) 12%, transparent);
+    background: color-mix(in srgb, var(--pw-silver, #a0aec0) 12%, transparent);
     border-radius: 50%;
-    border: 2px solid color-mix(in srgb, var(--pw-warning, #f59e0b) 40%, transparent);
+    border: 2px solid color-mix(in srgb, var(--pw-silver, #a0aec0) 40%, transparent);
 }
 
 .pw_surprise_spin_icon {
     font-size: 1.8rem;
-    color: var(--pw-warning, #f59e0b);
+    color: var(--pw-silver, #a0aec0);
 }
 
 .pw_surprise_processing_text {
@@ -3275,7 +3280,7 @@
 
 /* Icon spin animation for the modal title */
 .pw_surprise_icon_spin {
-    color: var(--pw-warning, #f59e0b);
+    color: var(--pw-silver, #a0aec0);
     animation: pw_icon_spin_slow 3s linear infinite;
 }
 
