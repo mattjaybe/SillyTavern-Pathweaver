@@ -131,6 +131,11 @@
     let cachedSuggestions = {};
     let cachedChatId = null;
 
+    // Surprise feature state
+    const SURPRISE_PROMPT_KEY = 'pathweaver_surprise';
+    let activeSurprise = null; // { category, depth, text } or null
+    let surpriseAbortController = null;
+
     // ============================================================
     // LOGGING UTILITIES
     // ============================================================
@@ -1495,6 +1500,68 @@ GUIDELINES:
         ` : '';
 
 
+        // 4. Surprise Dropdown
+        const allVisibleCats = getVisibleCategories();
+        let surpriseItems = '';
+        // Director first
+        surpriseItems += `
+            <button class="pw_dropdown_item pw_surprise_item" data-surprise-category="director">
+                <i class="fa-solid fa-clapperboard"></i>
+                <span>Director</span>
+            </button>`;
+        // Main categories
+        for (const [key, cat] of Object.entries(MAIN_CATEGORIES)) {
+            if (cat.nsfw && !settings.show_explicit) continue;
+            surpriseItems += `
+                <button class="pw_dropdown_item pw_surprise_item" data-surprise-category="${key}">
+                    <i class="fa-solid ${cat.icon}"></i>
+                    <span>${cat.name}</span>
+                </button>`;
+        }
+        // Genre categories
+        const sortedGenresSurprise = Object.entries(GENRE_CATEGORIES).sort((a, b) => a[1].name.localeCompare(b[1].name));
+        for (const [key, cat] of sortedGenresSurprise) {
+            if (cat.nsfw && !settings.show_explicit) continue;
+            surpriseItems += `
+                <button class="pw_dropdown_item pw_surprise_item" data-surprise-category="${key}">
+                    <i class="fa-solid ${cat.icon}"></i>
+                    <span>${cat.name}</span>
+                </button>`;
+        }
+        // Custom styles
+        if (settings.custom_styles?.length) {
+            for (const style of settings.custom_styles) {
+                surpriseItems += `
+                    <button class="pw_dropdown_item pw_surprise_item" data-surprise-category="${style.id}">
+                        <i class="fa-solid ${style.icon}"></i>
+                        <span>${style.name}</span>
+                    </button>`;
+            }
+        }
+
+        const surpriseIndicatorHtml = activeSurprise
+            ? `<span class="pw_surprise_active_dot" title="A surprise is active! It will trigger soon."></span>`
+            : '';
+
+        const surpriseDropdownHtml = `
+            <div class="pw_dropdown_container pw_surprise_container">
+                <button class="pw_dropdown_btn pw_surprise_btn${activeSurprise ? ' pw_surprise_armed' : ''}" data-name="Surprise" title="Surprise Me">
+                    <i class="fa-solid fa-wand-sparkles"></i>
+                    ${surpriseIndicatorHtml}
+                </button>
+                <div class="pw_dropdown_menu pw_surprise_menu">
+                    <div class="pw_surprise_menu_header">
+                        <i class="fa-solid fa-wand-sparkles"></i> Surprise Me
+                        <span class="pw_surprise_menu_hint">Pick a style — the AI will secretly plan something...</span>
+                    </div>
+                    ${surpriseItems}
+                    ${activeSurprise ? `<div class="pw_surprise_active_info">
+                        <i class="fa-solid fa-circle-check" style="color: var(--pw-success);"></i>
+                        A surprise is armed! <button class="pw_surprise_clear_btn" id="pw_surprise_clear">Clear</button>
+                    </div>` : ''}
+                </div>
+            </div>`;
+
         const minimized = settings.bar_minimized ? ' minimized' : '';
         const arrowIcon = settings.bar_minimized ? 'fa-chevron-up' : 'fa-chevron-down';
         const minimizeTitle = settings.bar_minimized ? 'Show Pathweaver' : 'Hide Pathweaver';
@@ -1511,6 +1578,7 @@ GUIDELINES:
                 ${builtinButtonsHtml}
                 ${customDropdownHtml}
                 ${genreDropdownHtml}
+                ${surpriseDropdownHtml}
             </div>
             <select class="pw_category_dropdown" title="Select a suggestion style">
                 <option value="" disabled selected>Style...</option>
@@ -1648,6 +1716,28 @@ GUIDELINES:
             settings.bar_minimized = !settings.bar_minimized;
             saveSettings();
             createActionBar();
+        });
+
+        // 8. Surprise items
+        jQuery(document).on('click.pw_action_bar_events touchend.pw_action_bar_events', '.pw_surprise_item', function (e) {
+            e.stopPropagation();
+            if (e.type === 'touchend') e.preventDefault();
+
+            const category = jQuery(this).data('surprise-category');
+            jQuery('.pw_dropdown_menu').removeClass('show');
+            jQuery('.pw_dropdown_btn').removeClass('active');
+
+            if (category) {
+                showSurpriseModal(category);
+            }
+        });
+
+        // 9. Clear surprise button
+        jQuery(document).on('click.pw_action_bar_events', '#pw_surprise_clear', function (e) {
+            e.stopPropagation();
+            clearSurprisePrompt();
+            createActionBar();
+            showToast('Surprise cleared!');
         });
     }
 
@@ -2999,6 +3089,349 @@ GUIDELINES:
     }
 
     // ============================================================
+    // SURPRISE FEATURE
+    // ============================================================
+
+    /**
+     * Inject a hidden prompt into the ST context at a given chat depth.
+     * Uses setExtensionPrompt so it is invisible to the user in the chat log.
+     */
+    /**
+     * Resolve extension_prompt_types from ST context or window globals.
+     * ST exports these from script.js; they may be on the context object or window.
+     * Fallback to numeric constants: IN_CHAT=1, NONE=0
+     */
+    function getSurprisePromptTypes() {
+        const stContext = SillyTavern.getContext();
+        // Try context first (some ST versions expose them here)
+        if (stContext?.extension_prompt_types) return stContext.extension_prompt_types;
+        // Try window globals (ST may export them)
+        if (typeof window.extension_prompt_types !== 'undefined') return window.extension_prompt_types;
+        // Numeric fallback matching ST's enum values
+        return { NONE: 0, IN_CHAT: 1, BEFORE_PROMPT: 2, AFTER_PROMPT: 3 };
+    }
+
+    function getSurprisePromptRoles() {
+        const stContext = SillyTavern.getContext();
+        if (stContext?.extension_prompt_roles) return stContext.extension_prompt_roles;
+        if (typeof window.extension_prompt_roles !== 'undefined') return window.extension_prompt_roles;
+        // Numeric fallback: SYSTEM=0, USER=1, ASSISTANT=2
+        return { SYSTEM: 0, USER: 1, ASSISTANT: 2 };
+    }
+
+    function injectSurprisePrompt(text, depth) {
+        try {
+            const stContext = SillyTavern.getContext();
+            if (!stContext || typeof stContext.setExtensionPrompt !== 'function') {
+                warn('setExtensionPrompt not available');
+                return false;
+            }
+
+            const promptTypes = getSurprisePromptTypes();
+            const promptRoles = getSurprisePromptRoles();
+
+            stContext.setExtensionPrompt(
+                SURPRISE_PROMPT_KEY,
+                text,
+                promptTypes.IN_CHAT,
+                depth,
+                true,
+                promptRoles.SYSTEM
+            );
+            log('Surprise injected at depth', depth, ':', text.substring(0, 80) + '...');
+            return true;
+        } catch (err) {
+            warn('Failed to inject surprise prompt:', err);
+            return false;
+        }
+    }
+
+    /**
+     * Remove the active surprise injection.
+     */
+    function clearSurprisePrompt() {
+        try {
+            const stContext = SillyTavern.getContext();
+            if (!stContext || typeof stContext.setExtensionPrompt !== 'function') return;
+
+            const promptTypes = getSurprisePromptTypes();
+            stContext.setExtensionPrompt(SURPRISE_PROMPT_KEY, '', promptTypes.NONE, 0);
+            activeSurprise = null;
+            log('Surprise prompt cleared');
+        } catch (err) {
+            warn('Failed to clear surprise prompt:', err);
+        }
+    }
+
+    /**
+     * Generate a single hidden narrative event using the given category's system prompt.
+     * Returns the raw text string (not parsed into suggestion cards).
+     */
+    async function generateSurpriseText(category, signal) {
+        const stContext = SillyTavern.getContext();
+        if (!stContext) throw new Error('SillyTavern context not available');
+
+        const storyContext = extractContext();
+        if (!storyContext) throw new Error('No active conversation found. Start a chat first.');
+
+        let categoryPrompt = await loadPrompt(category);
+
+        // Macro substitution
+        const charName = storyContext.characterInfo.replace('Character: ', '') || 'Character';
+        const userName = stContext.name1 || 'User';
+        categoryPrompt = categoryPrompt
+            .replace(/{{char}}/g, charName)
+            .replace(/{{user}}/g, userName)
+            .replace(/{{model}}/g, charName);
+
+        let contextBlock = '';
+        if (storyContext.characterInfo) contextBlock += `${storyContext.characterInfo}\n\n`;
+        if (settings.include_scenario && storyContext.scenario) contextBlock += `Scenario: ${storyContext.scenario}\n\n`;
+        if (settings.include_description && storyContext.description) {
+            contextBlock += `Character Description: ${storyContext.description.substring(0, 5000)}\n\n`;
+        }
+        contextBlock += `Recent conversation:\n${storyContext.history}`;
+
+        const userPrompt = `[STORY CONTEXT]\n${contextBlock}\n\n[TASK]\nGenerate exactly ONE single, self-contained narrative event or development that could be secretly injected into this story. This will be used as a hidden system note that the AI will act upon at the right moment.\n\nWrite it as a concise system instruction (1-3 sentences) in the format:\n[System Note: <the secret event/development>]\n\nMake it specific, surprising, and narratively interesting. Do NOT include any preamble, explanation, or multiple options — just the single system note.`;
+
+        const calculatedMaxTokens = 300;
+        let result = '';
+
+        if (settings.source === 'profile' && settings.preset) {
+            const cm = stContext.extensionSettings?.connectionManager;
+            const profile = cm?.profiles?.find(p => p.name === settings.preset);
+            if (!profile) throw new Error(`Profile '${settings.preset}' not found`);
+            if (!stContext.ConnectionManagerRequestService) throw new Error('ConnectionManagerRequestService not available');
+
+            const messages = [
+                { role: 'system', content: categoryPrompt },
+                { role: 'user', content: userPrompt }
+            ];
+            const response = await stContext.ConnectionManagerRequestService.sendRequest(
+                profile.id, messages, calculatedMaxTokens,
+                { stream: false, signal, extractData: true, includePreset: true, includeInstruct: true }
+            );
+            if (response?.content) result = response.content;
+            else if (typeof response === 'string') result = response;
+            else if (response?.choices?.[0]?.message?.content) result = response.choices[0].message.content;
+            else result = JSON.stringify(response);
+
+        } else if (settings.source === 'ollama') {
+            const baseUrl = (settings.ollama_url || 'http://localhost:11434').replace(/\/$/, '');
+            if (!settings.ollama_model) throw new Error('No Ollama model selected');
+            const response = await fetch(`${baseUrl}/api/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: settings.ollama_model,
+                    system: categoryPrompt,
+                    prompt: userPrompt,
+                    stream: false,
+                    options: { num_ctx: 4096, num_predict: calculatedMaxTokens }
+                }),
+                signal
+            });
+            if (!response.ok) throw new Error(`Ollama API error: ${response.status}`);
+            const data = await response.json();
+            result = data.response || '';
+
+        } else if (settings.source === 'openai') {
+            const baseUrl = (settings.openai_url || 'http://localhost:1234/v1').replace(/\/$/, '');
+            const headers = { 'Content-Type': 'application/json' };
+            if (settings.openai_key) headers['Authorization'] = `Bearer ${settings.openai_key}`;
+            const response = await fetch(`${baseUrl}/chat/completions`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    model: settings.openai_model || 'local-model',
+                    messages: [
+                        { role: 'system', content: categoryPrompt },
+                        { role: 'user', content: userPrompt }
+                    ],
+                    temperature: 0.9,
+                    max_tokens: calculatedMaxTokens,
+                    stream: false
+                }),
+                signal
+            });
+            if (!response.ok) throw new Error(`API error: ${response.status}`);
+            const data = await response.json();
+            result = data.choices?.[0]?.message?.content || '';
+
+        } else {
+            const { generateRaw } = stContext;
+            if (!generateRaw) throw new Error('generateRaw not available in context');
+            const abortPromise = new Promise((_, reject) => {
+                if (signal) signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+            });
+            result = await Promise.race([
+                generateRaw({ systemPrompt: categoryPrompt, prompt: userPrompt, streaming: false }),
+                abortPromise
+            ]);
+        }
+
+        // Clean up the result
+        result = result
+            .replace(/<(thought|think|thinking|reasoning|reason)>[\s\S]*?<\/\1>/gi, '')
+            .trim();
+
+        if (!result) throw new Error('No content generated');
+        return result;
+    }
+
+    /**
+     * Show the Surprise modal: style picker → processing → confirmation.
+     */
+    function showSurpriseModal(category) {
+        // Remove any existing surprise modal
+        jQuery('#pw_surprise_modal').remove();
+
+        const allCategories = getAllCategories();
+        const catInfo = allCategories[category] || { name: category, icon: 'fa-wand-sparkles' };
+
+        const modalHtml = `
+        <div class="pw_modal_overlay pw_surprise_modal_overlay" id="pw_surprise_modal">
+            <div class="pw_modal pw_surprise_modal_inner">
+                <div class="pw_modal_header">
+                    <h3 class="pw_modal_title">
+                        <i class="fa-solid fa-wand-sparkles pw_surprise_icon_spin"></i>
+                        Surprise Me
+                    </h3>
+                    <button class="pw_modal_close" id="pw_close_surprise">&times;</button>
+                </div>
+                <div class="pw_modal_body" id="pw_surprise_modal_body">
+                    <!-- Processing state -->
+                    <div id="pw_surprise_processing" class="pw_surprise_processing">
+                        <div class="pw_surprise_spinner">
+                            <i class="fa-solid fa-circle-notch pw_spin pw_surprise_spin_icon"></i>
+                        </div>
+                        <div class="pw_surprise_processing_text">
+                            <strong>Crafting your surprise...</strong>
+                            <span class="pw_surprise_style_label">
+                                <i class="fa-solid ${catInfo.icon}"></i> ${catInfo.name}
+                            </span>
+                            <p class="pw_surprise_hint">The AI is secretly planning something. You won't know what it is until it happens.</p>
+                        </div>
+                        <button class="pw_header_btn" id="pw_surprise_cancel_gen" style="margin-top: 16px;">
+                            <i class="fa-solid fa-xmark"></i> Cancel
+                        </button>
+                    </div>
+                    <!-- Done state (hidden initially) -->
+                    <div id="pw_surprise_done" class="pw_surprise_done" style="display:none;">
+                        <div class="pw_surprise_done_icon">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                        <div class="pw_surprise_done_text">
+                            <strong>Your surprise is set!</strong>
+                            <p>Something unexpected has been secretly woven into the story. It will emerge within the next few messages — keep writing and see what happens.</p>
+                            <span class="pw_surprise_style_label">
+                                <i class="fa-solid ${catInfo.icon}"></i> ${catInfo.name} style
+                            </span>
+                        </div>
+                        <button class="pw_header_btn primary" id="pw_surprise_ok" style="margin-top: 20px; width: 100%; justify-content: center;">
+                            <i class="fa-solid fa-check"></i> OK, let's go!
+                        </button>
+                    </div>
+                    <!-- Error state (hidden initially) -->
+                    <div id="pw_surprise_error" class="pw_surprise_error" style="display:none;">
+                        <div class="pw_surprise_error_icon">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                        </div>
+                        <p id="pw_surprise_error_msg">Something went wrong.</p>
+                        <button class="pw_header_btn" id="pw_surprise_retry" style="margin-top: 12px;">
+                            <i class="fa-solid fa-rotate"></i> Retry
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+
+        jQuery('body').append(modalHtml);
+        const modal = jQuery('#pw_surprise_modal');
+
+        // Close handlers
+        jQuery('#pw_close_surprise').on('click', () => {
+            if (surpriseAbortController) surpriseAbortController.abort();
+            modal.removeClass('active');
+            setTimeout(() => modal.remove(), 300);
+        });
+        modal.on('click', (e) => {
+            if (e.target === modal[0]) {
+                if (surpriseAbortController) surpriseAbortController.abort();
+                modal.removeClass('active');
+                setTimeout(() => modal.remove(), 300);
+            }
+        });
+
+        // Cancel generation
+        jQuery('#pw_surprise_cancel_gen').on('click', () => {
+            if (surpriseAbortController) surpriseAbortController.abort();
+        });
+
+        // OK button
+        jQuery('#pw_surprise_ok').on('click', () => {
+            modal.removeClass('active');
+            setTimeout(() => modal.remove(), 300);
+        });
+
+        // Show modal
+        setTimeout(() => modal.addClass('active'), 10);
+
+        // Start generation
+        runSurpriseGeneration(category, modal);
+    }
+
+    async function runSurpriseGeneration(category, modal) {
+        surpriseAbortController = new AbortController();
+        const signal = surpriseAbortController.signal;
+
+        try {
+            const text = await generateSurpriseText(category, signal);
+
+            if (signal.aborted) return;
+
+            // Pick a random depth between 2 and 6
+            const depth = Math.floor(Math.random() * 5) + 2; // 2, 3, 4, 5, or 6
+
+            const injected = injectSurprisePrompt(text, depth);
+            if (!injected) throw new Error('Failed to inject surprise into context');
+
+            // Store active surprise state
+            activeSurprise = { category, depth, text };
+
+            // Update bar to show armed indicator
+            createActionBar();
+
+            // Show done state
+            jQuery('#pw_surprise_processing').hide();
+            jQuery('#pw_surprise_done').show();
+
+        } catch (err) {
+            if (err.name === 'AbortError' || signal.aborted) {
+                // User cancelled — just close
+                if (modal && modal.length) {
+                    modal.removeClass('active');
+                    setTimeout(() => modal.remove(), 300);
+                }
+                return;
+            }
+            error('Surprise generation failed:', err);
+            jQuery('#pw_surprise_processing').hide();
+            jQuery('#pw_surprise_error_msg').text(err.message || 'Generation failed. Please try again.');
+            jQuery('#pw_surprise_error').show();
+
+            // Retry button
+            jQuery('#pw_surprise_retry').off('click').on('click', () => {
+                jQuery('#pw_surprise_error').hide();
+                jQuery('#pw_surprise_processing').show();
+                runSurpriseGeneration(category, modal);
+            });
+        } finally {
+            surpriseAbortController = null;
+        }
+    }
+
+    // ============================================================
     // SETTINGS PANEL (for ST extension panel)
     // ============================================================
 
@@ -3416,6 +3849,11 @@ GUIDELINES:
     const handleChatChanged = () => {
         cachedSuggestions = {};
         cachedChatId = null;
+        // Clear any active surprise when switching chats
+        if (activeSurprise) {
+            clearSurprisePrompt();
+            createActionBar();
+        }
     };
 
     const handleSettingsUpdated = () => {
@@ -3470,11 +3908,18 @@ GUIDELINES:
         jQuery('#pw_settings_modal').remove();
         jQuery('#pw_styles_manager').remove();
         jQuery('#pw_director_modal').remove();
+        jQuery('#pw_surprise_modal').remove();
+
+        // Clear any active surprise injection
+        try { clearSurprisePrompt(); } catch (_) { }
+        if (surpriseAbortController) { try { surpriseAbortController.abort(); } catch (_) { } }
 
         // Reset state
         actionBar = null;
         suggestionsModal = null;
         settingsModal = null;
+        activeSurprise = null;
+        surpriseAbortController = null;
     };
 
     // ============================================================
