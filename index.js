@@ -1546,7 +1546,7 @@ GUIDELINES:
                 <div class="pw_dropdown_menu pw_surprise_menu">
                     <div class="pw_surprise_menu_header">
                         <i class="fa-solid fa-wand-sparkles"></i> Surprise Me
-                        <span class="pw_surprise_menu_hint">Pick a style — the AI will secretly plan something...</span>
+                        <span class="pw_surprise_menu_hint">Pick a style to secretly arm a twist...</span>
                     </div>
                     ${surpriseItems}
                     ${activeSurprise ? `<div class="pw_surprise_active_info">
