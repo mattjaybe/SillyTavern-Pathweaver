@@ -1503,12 +1503,6 @@ GUIDELINES:
         // 4. Surprise Dropdown
         const allVisibleCats = getVisibleCategories();
         let surpriseItems = '';
-        // Director first
-        surpriseItems += `
-            <button class="pw_dropdown_item pw_surprise_item" data-surprise-category="director">
-                <i class="fa-solid fa-clapperboard"></i>
-                <span>Director</span>
-            </button>`;
         // Main categories
         for (const [key, cat] of Object.entries(MAIN_CATEGORIES)) {
             if (cat.nsfw && !settings.show_explicit) continue;
