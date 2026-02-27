@@ -1417,17 +1417,75 @@ GUIDELINES:
 
         const allCategories = getAllCategories();
 
-        // 1. Built-in Buttons
+        // 4. Surprise Dropdown (built first so it can be inserted right after Director)
+        let surpriseItems = '';
+        // Main categories
+        for (const [key, cat] of Object.entries(MAIN_CATEGORIES)) {
+            if (cat.nsfw && !settings.show_explicit) continue;
+            surpriseItems += `
+                <button class="pw_dropdown_item pw_surprise_item" data-surprise-category="${key}">
+                    <i class="fa-solid ${cat.icon}"></i>
+                    <span>${cat.name}</span>
+                </button>`;
+        }
+        // Genre categories
+        const sortedGenresSurprise = Object.entries(GENRE_CATEGORIES).sort((a, b) => a[1].name.localeCompare(b[1].name));
+        for (const [key, cat] of sortedGenresSurprise) {
+            if (cat.nsfw && !settings.show_explicit) continue;
+            surpriseItems += `
+                <button class="pw_dropdown_item pw_surprise_item" data-surprise-category="${key}">
+                    <i class="fa-solid ${cat.icon}"></i>
+                    <span>${cat.name}</span>
+                </button>`;
+        }
+        // Custom styles
+        if (settings.custom_styles?.length) {
+            for (const style of settings.custom_styles) {
+                surpriseItems += `
+                    <button class="pw_dropdown_item pw_surprise_item" data-surprise-category="${style.id}">
+                        <i class="fa-solid ${style.icon}"></i>
+                        <span>${style.name}</span>
+                    </button>`;
+            }
+        }
+
+        const surpriseIndicatorHtml = activeSurprise
+            ? `<span class="pw_surprise_active_dot" title="A surprise is active! It will trigger soon."></span>`
+            : '';
+
+        const surpriseDropdownHtml = `
+            <div class="pw_dropdown_container pw_surprise_container">
+                <button class="pw_dropdown_btn pw_surprise_btn${activeSurprise ? ' pw_surprise_armed' : ''}" data-name="Surprise" title="Surprise Me">
+                    <i class="fa-solid fa-wand-sparkles"></i>
+                    ${surpriseIndicatorHtml}
+                </button>
+                <div class="pw_dropdown_menu pw_surprise_menu">
+                    <div class="pw_surprise_menu_header">
+                        <i class="fa-solid fa-wand-sparkles"></i> Surprise Me
+                        <span class="pw_surprise_menu_hint">Pick a style to secretly add a suggestion...</span>
+                    </div>
+                    ${surpriseItems}
+                    ${activeSurprise ? `<div class="pw_surprise_active_info">
+                        <i class="fa-solid fa-circle-check" style="color: var(--pw-success);"></i>
+                        A surprise is armed! <button class="pw_surprise_clear_btn" id="pw_surprise_clear">Clear</button>
+                    </div>` : ''}
+                </div>
+            </div>`;
+
+        // 1. Built-in Buttons — Director first, then Surprise Me, then main categories
         let builtinButtonsHtml = '';
 
         // Director Button (Special)
         builtinButtonsHtml += `
-            <button class="pw_cat_btn pw_director_btn" 
+            <button class="pw_cat_btn pw_director_btn"
                     data-category="director"
                     data-name="Director"
                     title="Director: Take control of the story">
                 <i class="fa-solid fa-clapperboard"></i>
             </button>`;
+
+        // Surprise Me dropdown — immediately after Director
+        builtinButtonsHtml += surpriseDropdownHtml;
 
         // Main Categories (Context, Twist, Character, Explicit)
         let categoryOptionsHtml = '<option value="director">Director Mode</option>';
@@ -1501,63 +1559,6 @@ GUIDELINES:
             </div>
         ` : '';
 
-
-        // 4. Surprise Dropdown
-        const allVisibleCats = getVisibleCategories();
-        let surpriseItems = '';
-        // Main categories
-        for (const [key, cat] of Object.entries(MAIN_CATEGORIES)) {
-            if (cat.nsfw && !settings.show_explicit) continue;
-            surpriseItems += `
-                <button class="pw_dropdown_item pw_surprise_item" data-surprise-category="${key}">
-                    <i class="fa-solid ${cat.icon}"></i>
-                    <span>${cat.name}</span>
-                </button>`;
-        }
-        // Genre categories
-        const sortedGenresSurprise = Object.entries(GENRE_CATEGORIES).sort((a, b) => a[1].name.localeCompare(b[1].name));
-        for (const [key, cat] of sortedGenresSurprise) {
-            if (cat.nsfw && !settings.show_explicit) continue;
-            surpriseItems += `
-                <button class="pw_dropdown_item pw_surprise_item" data-surprise-category="${key}">
-                    <i class="fa-solid ${cat.icon}"></i>
-                    <span>${cat.name}</span>
-                </button>`;
-        }
-        // Custom styles
-        if (settings.custom_styles?.length) {
-            for (const style of settings.custom_styles) {
-                surpriseItems += `
-                    <button class="pw_dropdown_item pw_surprise_item" data-surprise-category="${style.id}">
-                        <i class="fa-solid ${style.icon}"></i>
-                        <span>${style.name}</span>
-                    </button>`;
-            }
-        }
-
-        const surpriseIndicatorHtml = activeSurprise
-            ? `<span class="pw_surprise_active_dot" title="A surprise is active! It will trigger soon."></span>`
-            : '';
-
-        const surpriseDropdownHtml = `
-            <div class="pw_dropdown_container pw_surprise_container">
-                <button class="pw_dropdown_btn pw_surprise_btn${activeSurprise ? ' pw_surprise_armed' : ''}" data-name="Surprise" title="Surprise Me">
-                    <i class="fa-solid fa-wand-sparkles"></i>
-                    ${surpriseIndicatorHtml}
-                </button>
-                <div class="pw_dropdown_menu pw_surprise_menu">
-                    <div class="pw_surprise_menu_header">
-                        <i class="fa-solid fa-wand-sparkles"></i> Surprise Me
-                        <span class="pw_surprise_menu_hint">Pick a style to secretly add a suggestion...</span>
-                    </div>
-                    ${surpriseItems}
-                    ${activeSurprise ? `<div class="pw_surprise_active_info">
-                        <i class="fa-solid fa-circle-check" style="color: var(--pw-success);"></i>
-                        A surprise is armed! <button class="pw_surprise_clear_btn" id="pw_surprise_clear">Clear</button>
-                    </div>` : ''}
-                </div>
-            </div>`;
-
         const minimized = settings.bar_minimized ? ' minimized' : '';
         const arrowIcon = settings.bar_minimized ? 'fa-chevron-up' : 'fa-chevron-down';
         const minimizeTitle = settings.bar_minimized ? 'Show Pathweaver' : 'Hide Pathweaver';
@@ -1572,7 +1573,6 @@ GUIDELINES:
             <span class="pw_bar_title">Pathweaver</span>
             <div class="pw_category_buttons">
                 ${builtinButtonsHtml}
-                ${surpriseDropdownHtml}
                 ${customDropdownHtml}
                 ${genreDropdownHtml}
             </div>
@@ -2500,23 +2500,9 @@ GUIDELINES:
 
                         <div class="pw_settings_section">
                             <h4 class="pw_settings_section_title">
-                                <i class="fa-solid fa-wand-magic-sparkles"></i> Suggestion Styles
-                            </h4>
-                            <p style="color: var(--pw-text-muted); font-size: 0.85rem; margin-bottom: 12px;">
-                                Manage built-in and customized suggestion styles.
-                            </p>
-                            <button class="pw_open_editor_btn" id="pw_open_style_editor">
-                                <i class="fa-solid fa-layer-group"></i> Suggestion Styles Manager
-                            </button>
-                        </div>
-
-                        <div class="pw_settings_section">
-                            <h4 class="pw_settings_section_title" style="color: var(--pw-silver, #a0aec0);">
                                 <i class="fa-solid fa-wand-sparkles"></i> Surprise Me
+                                <span class="pw_setting_tooltip_icon" title="Surprise Me secretly injects an AI-generated suggestion into the chat context a set number of messages before it fires. Pick a style, and Pathweaver will quietly arm a hidden prompt. When the countdown hits, the suggestion appears naturally — like the story took an unexpected turn on its own.">?</span>
                             </h4>
-                            <p style="color: var(--pw-text-muted); font-size: 0.85rem; margin-bottom: 12px;">
-                                Controls when the hidden suggestion is injected into the chat context.
-                            </p>
                             <div class="pw_setting_row">
                                 <span class="pw_setting_label"><i class="fa-solid fa-shuffle"></i> Randomize depth</span>
                                 <div class="pw_toggle ${settings.surprise_randomize ? 'active' : ''}" data-setting="surprise_randomize"></div>
@@ -2532,6 +2518,18 @@ GUIDELINES:
                                     </select>
                                 </div>
                             </div>
+                        </div>
+
+                        <div class="pw_settings_section">
+                            <h4 class="pw_settings_section_title">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> Suggestion Styles
+                            </h4>
+                            <p style="color: var(--pw-text-muted); font-size: 0.85rem; margin-bottom: 12px;">
+                                Manage built-in and customized suggestion styles.
+                            </p>
+                            <button class="pw_open_editor_btn" id="pw_open_style_editor">
+                                <i class="fa-solid fa-layer-group"></i> Suggestion Styles Manager
+                            </button>
                         </div>
 
                     </div>
@@ -2577,6 +2575,13 @@ GUIDELINES:
                 jQuery('.pw_toggle[data-setting="insert_type_ooc"]').removeClass('active');
             }
 
+            // Surprise Me: update depth row visibility when randomize is toggled
+            if (setting === 'surprise_randomize') {
+                jQuery('#pw_sm_surprise_depth_row').css(settings.surprise_randomize
+                    ? { opacity: '0.4', 'pointer-events': 'none' }
+                    : { opacity: '1', 'pointer-events': 'auto' });
+            }
+
             saveSettings();
             syncSettingsToPanel(); // Sync to extension panel (NOW after logic)
         });
@@ -2612,17 +2617,6 @@ GUIDELINES:
 
         // Suggestion length
         jQuery('#pw_sm_suggestion_length').on('change', function () { settings.suggestion_length = this.value; saveSettings(); syncSettingsToPanel(); });
-
-        // Surprise Me: randomize toggle
-        jQuery('.pw_toggle[data-setting="surprise_randomize"]').on('click', function () {
-            settings.surprise_randomize = !settings.surprise_randomize;
-            jQuery(this).toggleClass('active', settings.surprise_randomize);
-            jQuery('#pw_sm_surprise_depth_row').css(settings.surprise_randomize
-                ? { opacity: '0.4', 'pointer-events': 'none' }
-                : { opacity: '1', 'pointer-events': 'auto' });
-            saveSettings();
-            syncSettingsToPanel();
-        });
 
         // Surprise Me: depth select
         jQuery('#pw_sm_surprise_depth').on('change', function () {

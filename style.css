@@ -3104,6 +3104,32 @@
     --pw-silver: #a0aec0;
 }
 
+/* Tooltip '?' icon next to section titles */
+.pw_setting_tooltip_icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--pw-text-muted, #9ca3af) 20%, transparent);
+    border: 1px solid color-mix(in srgb, var(--pw-text-muted, #9ca3af) 40%, transparent);
+    color: var(--pw-text-muted, #9ca3af);
+    font-size: 0.65rem;
+    font-weight: 700;
+    cursor: help;
+    margin-left: 6px;
+    vertical-align: middle;
+    flex-shrink: 0;
+    transition: background var(--pw-transition), color var(--pw-transition);
+}
+
+.pw_setting_tooltip_icon:hover {
+    background: color-mix(in srgb, var(--pw-accent) 20%, transparent);
+    border-color: color-mix(in srgb, var(--pw-accent) 50%, transparent);
+    color: var(--pw-accent);
+}
+
 /* Surprise button - silver appearance (Director is gold) */
 .pw_surprise_btn {
     position: relative;
