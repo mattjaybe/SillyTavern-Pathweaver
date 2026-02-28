@@ -4,6 +4,9 @@
 
 ## 🆕 What's New
 
+### ***ver 1.3.0***
+- Added a new Surprise Me button. Surprise Me secretly injects an AI-generated suggestion into the chat context a set number of messages before it fires. Pick a style, and Pathweaver will quietly arm a hidden prompt. When the countdown hits, the suggestion appears naturally — like the story took an unexpected turn on its own.
+
 ### ***ver 1.2 & 1.2.1***
 - Added option to hide the animated bar in the settings
 - 1.2.1: Ensures that the hide/show button remains clickable when the <a href="https://github.com/mattjaybe/SillyTavern-Larson">Larson extension</a> is installed
@@ -25,9 +28,9 @@
 **Pathweaver** is a creative companion extension for [SillyTavern](https://github.com/SillyTavern/SillyTavern). It analyzes your current chat context and generates Suggestions — options for where the story could go next. Whether you need a sudden plot twist, a new character introduction, or just a little nudge to break writer's block, Pathweaver provides up to 6 distinctive suggestions for every request.
 
 <p align="center">
-  <a href="https://github.com/user-attachments/assets/6279f0a6-e0fe-4315-bdea-c392db73d5e8"><img src="https://github.com/user-attachments/assets/6279f0a6-e0fe-4315-bdea-c392db73d5e8" alt="Pathweaver" width="70%"></a>
+  <a href="https://github.com/user-attachments/assets/1674155c-51a8-4a12-927f-fb8f1b13a509"><img src="https://github.com/user-attachments/assets/1674155c-51a8-4a12-927f-fb8f1b13a509" /></a>
   <br>
-  <sub><em>The Pathweaver bar - Director Mode, Context-Aware, Plot Twist, New Character, Explicit, Custom, and Genre suggestions.</em></sub>
+  <sub><em>The Pathweaver bar - Director Mode, Surprise Me, Context-Aware, Plot Twist, New Character, Explicit, Custom, and Genre suggestions.</em></sub>
 </p>
 
 ---
@@ -41,6 +44,7 @@
 ### 🎯 Smart Generation
 - **Context-Aware**: Analyzes 2-10 messages for coherent suggestions
 - **Director Mode**: Single Scene or Story Beats for precise control
+- **Surprise Me**: Adds a hidden suggestion that triggers later in the story/roleplay
 - **Genre Specialization**: 9 built-in genres + unlimited custom styles
 
 </td>
@@ -74,6 +78,7 @@ Pathweaver adds a **Control Bar** above your chat input. Click any button to ins
 | Icon | Category | Usage |
 |------|----------|-------|
 | 🎬 | **Director** | Opens a simplified input box. You type a prompt, AI gives you tailored suggestions. |
+| 😲 | **Surprise Me** | Secretly injects a suggestion into context a set number of messages before it triggers. |
 | 🧭 | **Context-Aware** | "What happens next?" Smart suggestions based on story logic and context. |
 | 🔀 | **Plot Twist** | Throws a curveball. Unexpected events, betrayals, and shocks. |
 | 👤+ | **New Character** | Adds a new character to the story based on a variety of character tropes. |
@@ -135,6 +140,7 @@ Access Pathweaver settings by clicking the ⚙️ gear icon on the right side of
 - **Title Font**: Change the font of 'Pathweaver' on the bar, or hide it altogether.
 - **Stream Suggestions**: Cards appear in real-time as each suggestion is generated.
 - **Minimal Mode**: Arrow on the bar hides and shows Pathweaver.
+- **Surprise Me**: Set whether to randomize the message away amount or manually set it.
 
 <p align="center">
   <a href="https://github.com/user-attachments/assets/380434d3-3ab6-4e1c-857c-ad5bc5d660aa"><img src="https://github.com/user-attachments/assets/380434d3-3ab6-4e1c-857c-ad5bc5d660aa" alt="Pathweaver - Settings" width="70%"></a>
@@ -270,6 +276,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 <p align="center">
   Made with ❤️ for the SillyTavern community
 </p>
+
 
 
 
