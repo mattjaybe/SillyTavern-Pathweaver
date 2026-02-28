@@ -221,6 +221,85 @@
 
             <hr class="pw_divider">
 
+            <!-- Surprise Me Section -->
+            <div class="pw_section">
+                <h4 class="pw_section_title">
+                    <i class="fa-solid fa-wand-sparkles"></i> Surprise Me
+                    <span class="pw_setting_tooltip_icon" title="Surprise Me secretly injects an AI-generated suggestion into the chat context a set number of messages before it fires. Pick a style, and Pathweaver will quietly arm a hidden prompt. When the countdown hits, the suggestion appears naturally — like the story took an unexpected turn on its own.">?</span>
+                </h4>
+
+                <label class="checkbox_label pw_checkbox_row" for="pw_surprise_randomize">
+                    <input id="pw_surprise_randomize" type="checkbox" class="checkbox">
+                    <span><i class="fa-solid fa-shuffle"></i> Randomize depth</span>
+                </label>
+
+                <div id="pw_surprise_range_rows" style="margin-top: 4px;">
+                    <p class="pw_setting_hint" style="margin: 2px 0 8px 0; font-size: 0.78rem; opacity: 0.8;">
+                        Picks a random depth within this range each time.
+                    </p>
+                    <div class="pw_row_2col">
+                        <div>
+                            <label for="pw_surprise_depth_min" class="pw_input_label">
+                                <i class="fa-solid fa-clock-rotate-left"></i> Min messages
+                            </label>
+                            <select id="pw_surprise_depth_min" class="text_pole pw_select">
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4" selected>4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                                <option value="7">7</option>
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                                <option value="10">10</option>
+                                <option value="11">11</option>
+                                <option value="12">12</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="pw_surprise_depth_max" class="pw_input_label">
+                                <i class="fa-solid fa-clock-rotate-left"></i> Max messages
+                            </label>
+                            <select id="pw_surprise_depth_max" class="text_pole pw_select">
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6" selected>6</option>
+                                <option value="7">7</option>
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                                <option value="10">10</option>
+                                <option value="11">11</option>
+                                <option value="12">12</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div id="pw_surprise_fixed_hint" style="display:none; margin-top: 4px;">
+                    <p class="pw_setting_hint" style="margin: 0; font-size: 0.78rem; opacity: 0.8;">
+                        Uses a fixed depth of <strong id="pw_surprise_fixed_depth_label">2</strong> messages.
+                    </p>
+                </div>
+
+                <!-- Active queue accordion -->
+                <details id="pw_surprise_queue_accordion" class="pw_surprise_queue_accordion" style="display:none; margin-top: 12px;">
+                    <summary class="pw_surprise_queue_summary">
+                        <i class="fa-solid fa-list-check"></i>
+                        <span id="pw_surprise_queue_label">Armed surprises</span>
+                        <i class="fa-solid fa-chevron-down pw_surprise_queue_chevron"></i>
+                    </summary>
+                    <ul id="pw_surprise_queue_list" class="pw_surprise_queue_list"></ul>
+                </details>
+
+                <!-- Clear all button -->
+                <button id="pw_surprise_clear_all" class="pw_surprise_clear_all_btn" style="display:none; margin-top: 10px;">
+                    <i class="fa-solid fa-xmark"></i> Clear all surprises
+                </button>
+            </div>
+
+            <hr class="pw_divider">
+
             <!-- Appearance Section -->
             <div class="pw_section">
                 <h4 class="pw_section_title">

@@ -3094,3 +3094,431 @@
     width: 30px;
     height: 30px;
 }
+
+/* ============================================================
+   SURPRISE FEATURE
+   ============================================================ */
+
+/* Silver color token for Surprise Me */
+:root {
+    --pw-silver: #a0aec0;
+}
+
+/* Tooltip '?' icon next to section titles */
+.pw_setting_tooltip_icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--pw-text-muted, #9ca3af) 20%, transparent);
+    border: 1px solid color-mix(in srgb, var(--pw-text-muted, #9ca3af) 40%, transparent);
+    color: var(--pw-text-muted, #9ca3af);
+    font-size: 0.65rem;
+    font-weight: 700;
+    cursor: help;
+    margin-left: 6px;
+    vertical-align: middle;
+    flex-shrink: 0;
+    transition: background var(--pw-transition), color var(--pw-transition);
+}
+
+.pw_setting_tooltip_icon:hover {
+    background: color-mix(in srgb, var(--pw-accent) 20%, transparent);
+    border-color: color-mix(in srgb, var(--pw-accent) 50%, transparent);
+    color: var(--pw-accent);
+}
+
+/* Surprise button - silver appearance (Director is gold) */
+.pw_surprise_btn {
+    position: relative;
+    color: var(--pw-silver, #a0aec0) !important;
+    border-color: color-mix(in srgb, var(--pw-silver, #a0aec0) 40%, transparent) !important;
+}
+
+.pw_surprise_btn:hover,
+.pw_surprise_btn.active {
+    background: color-mix(in srgb, var(--pw-silver, #a0aec0) 15%, transparent) !important;
+    border-color: var(--pw-silver, #a0aec0) !important;
+    box-shadow: 0 0 10px color-mix(in srgb, var(--pw-silver, #a0aec0) 30%, transparent) !important;
+}
+
+/* Armed state — subtle border highlight only; dot handles the visual signal */
+.pw_surprise_btn.pw_surprise_armed {
+    border-color: var(--pw-silver, #a0aec0) !important;
+    background: color-mix(in srgb, var(--pw-silver, #a0aec0) 10%, transparent) !important;
+}
+
+/* Active dot — soft scale+opacity pulse like a notification badge */
+.pw_surprise_active_dot {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 7px;
+    height: 7px;
+    background: var(--pw-success, #10b981);
+    border-radius: 50%;
+    border: 1px solid var(--pw-glass-bg);
+    pointer-events: none;
+    animation: pw_dot_pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes pw_dot_pulse {
+    0%, 100% { opacity: 1;    transform: scale(1); }
+    50%       { opacity: 0.4; transform: scale(0.7); }
+}
+
+/* Surprise dropdown menu - wider to accommodate header */
+.pw_surprise_menu {
+    min-width: 220px;
+    max-height: 380px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Surprise menu header */
+.pw_surprise_menu_header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 12px 6px;
+    margin-bottom: 4px;
+    color: var(--pw-silver, #a0aec0);
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.pw_surprise_menu_hint {
+    flex-basis: 100%;
+    font-size: 0.72rem;
+    color: var(--pw-text-muted);
+    font-weight: 400;
+    font-style: italic;
+    line-height: 1.3;
+    margin-top: -2px;
+}
+
+/* Active surprise info — sits below the menu header, above the category list */
+.pw_surprise_active_info {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--pw-glass-border);
+    margin-bottom: 4px;
+}
+
+.pw_surprise_active_info_label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--pw-text-secondary);
+}
+
+.pw_surprise_clear_btn {
+    background: none;
+    border: 1px solid var(--pw-danger, #ef4444);
+    color: var(--pw-danger, #ef4444);
+    border-radius: 4px;
+    padding: 4px 0;
+    font-size: 0.75rem;
+    cursor: pointer;
+    width: 100%;
+    transition: background var(--pw-transition);
+}
+
+.pw_surprise_clear_btn:hover {
+    background: color-mix(in srgb, var(--pw-danger, #ef4444) 15%, transparent);
+}
+
+/* ============================================================
+   SURPRISE QUEUE ACCORDION (settings panel + modal)
+   ============================================================ */
+
+.pw_surprise_queue_accordion {
+    border: 1px solid var(--pw-glass-border);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-top: 12px;
+}
+
+.pw_surprise_queue_summary {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 10px;
+    font-size: 0.82rem;
+    color: var(--pw-text-secondary);
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    background: rgba(255, 255, 255, 0.03);
+    transition: background var(--pw-transition);
+}
+
+.pw_surprise_queue_summary::-webkit-details-marker { display: none; }
+
+.pw_surprise_queue_summary:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: var(--pw-text-primary);
+}
+
+.pw_surprise_queue_chevron {
+    margin-left: auto;
+    font-size: 0.7rem;
+    transition: transform 0.2s ease;
+}
+
+details[open] .pw_surprise_queue_chevron {
+    transform: rotate(180deg);
+}
+
+.pw_surprise_queue_list {
+    list-style: none;
+    margin: 0;
+    padding: 4px 0;
+    border-top: 1px solid var(--pw-glass-border);
+}
+
+.pw_sq_item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    color: var(--pw-text-secondary);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.pw_sq_item:last-child { border-bottom: none; }
+
+.pw_sq_cat {
+    flex: 1;
+    color: var(--pw-text-primary);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.pw_sq_status {
+    font-size: 0.75rem;
+    color: var(--pw-text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.pw_sq_firing {
+    color: var(--pw-success, #10b981);
+}
+
+.pw_sq_remove {
+    background: none;
+    border: none;
+    padding: 2px 5px;
+    color: var(--pw-text-muted);
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: color var(--pw-transition), background var(--pw-transition);
+}
+
+.pw_sq_remove:hover {
+    color: var(--pw-danger, #ef4444);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+/* Clear all armed surprises button */
+.pw_surprise_clear_all_btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    margin-top: 10px;
+    padding: 7px 10px;
+    background: rgba(239, 68, 68, 0.06);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 6px;
+    color: var(--pw-danger, #ef4444);
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: background var(--pw-transition), border-color var(--pw-transition);
+}
+
+.pw_surprise_clear_all_btn:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: var(--pw-danger, #ef4444);
+}
+
+/* Surprise OK button — outline style so theme accent doesn't render as solid fill */
+#pw_surprise_ok.pw_header_btn.primary {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: var(--pw-accent);
+    color: var(--pw-accent);
+}
+
+#pw_surprise_ok.pw_header_btn.primary:hover {
+    background: color-mix(in srgb, var(--pw-accent) 18%, transparent);
+}
+
+/* ============================================================
+   SURPRISE MODAL
+   ============================================================ */
+
+.pw_surprise_modal_overlay {
+    /* inherits pw_modal_overlay styles */
+}
+
+.pw_surprise_modal_inner {
+    max-width: 420px;
+}
+
+/* Processing state */
+.pw_surprise_processing {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 24px 16px;
+    text-align: center;
+}
+
+.pw_surprise_spinner {
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--pw-silver, #a0aec0) 12%, transparent);
+    border-radius: 50%;
+    border: 2px solid color-mix(in srgb, var(--pw-silver, #a0aec0) 40%, transparent);
+}
+
+.pw_surprise_spin_icon {
+    font-size: 1.8rem;
+    color: var(--pw-silver, #a0aec0);
+}
+
+.pw_surprise_processing_text {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+}
+
+.pw_surprise_processing_text strong {
+    font-size: 1.1rem;
+    color: var(--pw-text-primary);
+}
+
+.pw_surprise_style_label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    background: color-mix(in srgb, var(--pw-accent) 15%, transparent);
+    border: 1px solid color-mix(in srgb, var(--pw-accent) 40%, transparent);
+    border-radius: 20px;
+    font-size: 0.85rem;
+    color: var(--pw-accent);
+}
+
+.pw_surprise_hint {
+    font-size: 0.82rem;
+    color: var(--pw-text-muted);
+    font-style: italic;
+    margin: 0;
+    max-width: 280px;
+    line-height: 1.4;
+}
+
+/* Icon spin animation for the modal title */
+.pw_surprise_icon_spin {
+    color: var(--pw-silver, #a0aec0);
+    animation: pw_icon_spin_slow 3s linear infinite;
+}
+
+@keyframes pw_icon_spin_slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Done state */
+.pw_surprise_done {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 24px 16px;
+    text-align: center;
+}
+
+.pw_surprise_done_icon {
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--pw-success, #10b981) 12%, transparent);
+    border-radius: 50%;
+    border: 2px solid color-mix(in srgb, var(--pw-success, #10b981) 40%, transparent);
+    font-size: 1.8rem;
+    color: var(--pw-success, #10b981);
+    animation: pw_done_pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes pw_done_pop {
+    0% { transform: scale(0.5); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.pw_surprise_done_text {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+}
+
+.pw_surprise_done_text strong {
+    font-size: 1.1rem;
+    color: var(--pw-text-primary);
+}
+
+.pw_surprise_done_text p {
+    font-size: 0.85rem;
+    color: var(--pw-text-muted);
+    margin: 0;
+    max-width: 300px;
+    line-height: 1.5;
+}
+
+/* Error state */
+.pw_surprise_error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 24px 16px;
+    text-align: center;
+}
+
+.pw_surprise_error_icon {
+    font-size: 2.5rem;
+    color: var(--pw-danger, #ef4444);
+}
+
+.pw_surprise_error p {
+    font-size: 0.9rem;
+    color: var(--pw-text-secondary);
+    margin: 0;
+    max-width: 300px;
+}
