@@ -3836,48 +3836,23 @@ GUIDELINES:
     }
 
     function applySettingsToUI() {
-        // Settings Panel (settings.html) - IDs without _sm_ prefix
-        jQuery('#pw_enabled').prop('checked', settings.enabled);
-        jQuery('#pw_source').val(settings.source);
-        jQuery('#pw_profile_select').val(settings.preset);
-        jQuery('#pw_ollama_url').val(settings.ollama_url);
-        jQuery('#pw_ollama_model').val(settings.ollama_model);
-        jQuery('#pw_openai_preset').val(settings.openai_preset);
-        jQuery('#pw_openai_url').val(settings.openai_url);
-        jQuery('#pw_openai_model').val(settings.openai_model);
-        jQuery('#pw_suggestions_count').val(settings.suggestions_count);
-        jQuery('#pw_context_depth').val(settings.context_depth);
-        jQuery('#pw_suggestion_length').val(settings.suggestion_length);
-        jQuery('#pw_font_size').val(settings.bar_font_size);
-        jQuery('#pw_bar_height').val(settings.bar_height);
-        jQuery('#pw_insert_mode').prop('checked', settings.insert_mode);
-        jQuery('#pw_show_explicit').prop('checked', settings.show_explicit);
-        jQuery('#pw_hide_animated_bar').prop('checked', settings.hide_animated_bar);
+        // Delegate all field-restoration to syncSettingsToPanel, which is the
+        // single authoritative place that maps every settings key to its panel
+        // element.  Previously applySettingsToUI was a hand-maintained partial
+        // copy of that function and had drifted out of sync — causing several
+        // settings (#pw_openai_key, #pw_stream_suggestions, #pw_bar_title_font,
+        // #pw_surprise_randomize, #pw_surprise_depth_min/_max, and the
+        // randomize show/hide block) to always revert to their HTML defaults
+        // after every page reload even though the values were saved correctly.
+        syncSettingsToPanel();
 
-        jQuery('#pw_insert_type_enabled').prop('checked', settings.insert_type_enabled);
-        jQuery('#pw_insert_type_ooc').prop('checked', settings.insert_type_ooc);
-        jQuery('#pw_insert_type_director').prop('checked', settings.insert_type_director);
-
-        if (settings.insert_type_enabled) jQuery('#pw_insert_type_options').css('display', 'flex');
-        else jQuery('#pw_insert_type_options').hide();
-
-        // Context sources
-        jQuery('#pw_include_scenario').prop('checked', settings.include_scenario);
-        jQuery('#pw_include_description').prop('checked', settings.include_description);
-        jQuery('#pw_include_worldinfo').prop('checked', settings.include_worldinfo);
-
-        // Show/hide provider boxes based on source
-        updateProviderVisibility(settings.source);
-
-        // Populate profile dropdown
+        // These extras are init-only (dynamic data that syncSettingsToPanel
+        // intentionally omits because they require async work or DOM queries
+        // that are only meaningful on first load):
         populateProfileDropdown('#pw_profile_select');
-
-        // Fetch Ollama models if needed
         if (settings.source === 'ollama') {
             fetchAndPopulateOllamaModels('#pw_ollama_model');
         }
-        renderSurpriseQueue();
-        jQuery('#pw_surprise_endless').prop('checked', settings.surprise_endless);
     }
 
     function updateProviderVisibility(source) {

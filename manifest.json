@@ -6,7 +6,7 @@
     "js": "index.js?test5",
     "css": "style.css?test5",
     "author": "mattjaybe",
-    "version": "1.4.2",
+    "version": "1.4.3",
     "homePage": "https://github.com/mattjaybe/SillyTavern-Pathweaver",
     "auto_update": true
 }
