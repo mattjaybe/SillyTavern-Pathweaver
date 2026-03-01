@@ -1464,80 +1464,85 @@
 
 @media (max-width: 768px) {
 
-    /* Action Bar Layout */
+    /* ── Action Bar: single row, scrollable buttons, nothing clipped ── */
     .pw_action_bar {
-        padding: 8px 10px;
-        min-height: 52px;
-        gap: 8px;
-        flex-wrap: wrap;
-        /* Allow wrapping if needed */
-        justify-content: flex-start;
-        /* Align items to start */
+        padding: 6px 8px;
+        min-height: 48px;
+        gap: 4px;
+        /* Single row — no wrapping so title + buttons + right stay on one line */
+        flex-wrap: nowrap;
+        align-items: center;
+        overflow: hidden; /* clip vertically but buttons scroll horizontally */
     }
 
-    /* Hide Title Text on Mobile to save space */
-    /* Hide Title Text on Mobile to save space */
+    /* Show title as compact abbreviation so it stays visible without eating space */
     .pw_bar_title {
-        display: none !important;
+        font-size: 0.72rem !important;
+        letter-spacing: 0 !important;
+        margin-right: 4px;
+        flex-shrink: 0;
+        max-width: 30px;
+        overflow: hidden;
+        /* Clip "athweaver" — shows just "P" on very narrow, full word on wider */
+        white-space: nowrap;
+        display: block !important; /* visible but tiny */
     }
 
-    /* Make category container scrollable horizontally */
-    /* Make category container scrollable horizontally */
+    /* Buttons container: horizontally scrollable, never wraps */
     .pw_category_buttons {
         flex: 1;
-        /* Take available space */
-        max-width: 100%;
-        overflow: visible !important;
-        /* Allow dropdowns to show */
-        flex-wrap: wrap;
-        /* Allow wrapping instead of scrolling */
-        padding-bottom: 0;
+        min-width: 0;           /* allow shrinking below content size */
+        overflow-x: auto !important;
+        overflow-y: visible !important;
+        flex-wrap: nowrap !important;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding: 2px 0;
         margin: 0;
-        padding-left: 0 !important;
+        gap: 4px !important;
     }
 
-    /* Hide individual custom buttons on mobile */
-    .pw_custom_btn {
-        display: none !important;
+    .pw_category_buttons::-webkit-scrollbar {
+        display: none;
     }
 
-    /* Show custom dropdown on mobile */
-    .pw_custom_dropdown_container,
-    .pw_genre_dropdown_container {
-        display: flex !important;
-        position: relative;
-        align-items: center;
-        justify-content: center;
-        width: 32px;
-        height: 32px;
-        color: var(--pw-text-muted);
+    /* Slightly smaller buttons on mobile for more to fit without scrolling */
+    .pw_cat_btn {
+        width: 40px !important;
+        height: 40px !important;
+        font-size: 1.05rem !important;
+        flex-shrink: 0; /* buttons never shrink — they scroll instead */
     }
 
-    .pw_custom_dropdown,
-    .pw_genre_dropdown {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        opacity: 0;
-        cursor: pointer;
-        z-index: 2;
-    }
-
-    /* Larger Touch Targets for Buttons */
-    .pw_cat_btn,
     .pw_icon_btn {
-        width: 44px;
-        /* Minimum recommended touch target */
-        height: 44px;
-        font-size: 1.2rem;
-        /* Larger icons */
+        width: 40px !important;
+        height: 40px !important;
+        flex-shrink: 0;
+    }
+
+    /* Dropdown buttons in bar */
+    .pw_dropdown_btn {
+        width: 40px !important;
+        height: 40px !important;
+        flex-shrink: 0;
     }
 
     /* Hide Hover Labels on Mobile (No hover state) */
     .pw_hover_label {
         display: none !important;
+    }
+
+    /* Scroll-hint fade on right edge of buttons so user knows it scrolls */
+    .pw_category_buttons::after {
+        content: '';
+        position: sticky;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 20px;
+        flex-shrink: 0;
+        background: linear-gradient(to right, transparent, var(--pw-glass-bg, rgba(20,20,30,0.95)));
+        pointer-events: none;
     }
 
     /* Modal Mobile Styles */
@@ -3538,4 +3543,347 @@ details[open] .pw_surprise_queue_chevron {
     color: var(--pw-text-secondary);
     margin: 0;
     max-width: 300px;
+}
+/* ============================================================
+   CUSTOM ICON DROPDOWN (Styles Manager Editor)
+   ============================================================ */
+
+.pw_icon_dropdown_wrap {
+    position: relative;
+    flex: 1;
+}
+
+.pw_icon_dropdown_trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--pw-glass-border);
+    border-radius: 6px;
+    color: var(--pw-text-primary);
+    cursor: pointer;
+    transition: all var(--pw-transition);
+    font-size: 0.9rem;
+    text-align: left;
+}
+
+.pw_icon_dropdown_trigger:hover,
+.pw_icon_dropdown_trigger:focus {
+    border-color: var(--pw-accent);
+    background: rgba(255, 255, 255, 0.09);
+    outline: none;
+}
+
+.pw_icon_dd_icon {
+    color: var(--pw-accent);
+    font-size: 1.1rem;
+    width: 18px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.pw_icon_dd_label {
+    flex: 1;
+    font-size: 0.88rem;
+    color: var(--pw-text-primary);
+}
+
+.pw_icon_dd_chevron {
+    font-size: 0.7rem;
+    color: var(--pw-text-muted);
+    transition: transform var(--pw-transition);
+}
+
+.pw_icon_dropdown_panel.open ~ .pw_icon_dropdown_trigger .pw_icon_dd_chevron,
+.pw_icon_dropdown_trigger[aria-expanded="true"] .pw_icon_dd_chevron {
+    transform: rotate(180deg);
+}
+
+.pw_icon_dropdown_panel {
+    /* Absolute so it is anchored to .pw_icon_dropdown_wrap on desktop.
+       JS adds .pw_icon_panel_flip when the panel would overflow the right edge,
+       which switches the anchor point to the right side instead. */
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: auto;
+    width: 320px;
+    max-height: 260px;
+    background: var(--pw-glass-bg, rgba(20, 20, 30, 0.97));
+    border: 1px solid var(--pw-glass-border);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    display: none;
+    flex-direction: column;
+    z-index: 9999;
+    overflow: hidden;
+    backdrop-filter: blur(12px);
+}
+
+/* Flip anchor to right edge when panel would overflow the right side of the viewport */
+.pw_icon_dropdown_panel.pw_icon_panel_flip {
+    left: auto;
+    right: 0;
+}
+
+/* Open upward when there is not enough space below */
+.pw_icon_dropdown_panel.pw_icon_panel_up {
+    top: auto;
+    bottom: calc(100% + 6px);
+}
+
+.pw_icon_dropdown_panel.open {
+    display: flex;
+}
+
+/* Mobile-only sheet header — hidden on desktop */
+.pw_icon_mobile_header {
+    display: none;
+}
+
+.pw_icon_search_wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--pw-glass-border);
+    color: var(--pw-text-muted);
+    flex-shrink: 0;
+}
+
+.pw_icon_search {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--pw-text-primary);
+    font-size: 0.85rem;
+}
+
+.pw_icon_search::placeholder {
+    color: var(--pw-text-muted);
+}
+
+.pw_icon_grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+    padding: 8px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.pw_icon_grid_item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 4px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--pw-text-secondary);
+    cursor: pointer;
+    transition: all var(--pw-transition);
+    font-size: 0.62rem;
+    min-width: 0;
+}
+
+.pw_icon_grid_item i {
+    font-size: 1.1rem;
+    color: var(--pw-text-primary);
+}
+
+.pw_icon_grid_item span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    text-align: center;
+}
+
+.pw_icon_grid_item:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: var(--pw-accent);
+    color: var(--pw-accent);
+}
+
+.pw_icon_grid_item:hover i {
+    color: var(--pw-accent);
+}
+
+.pw_icon_grid_item.active {
+    background: color-mix(in srgb, var(--pw-accent) 15%, transparent);
+    border-color: var(--pw-accent);
+    color: var(--pw-accent);
+}
+
+.pw_icon_grid_item.active i {
+    color: var(--pw-accent);
+}
+
+/* Scrollbar for icon grid */
+.pw_icon_grid::-webkit-scrollbar { width: 4px; }
+.pw_icon_grid::-webkit-scrollbar-track { background: transparent; }
+.pw_icon_grid::-webkit-scrollbar-thumb {
+    background: var(--pw-glass-border);
+    border-radius: 4px;
+}
+
+/* ============================================================
+   ICON DROPDOWN — MOBILE BOTTOM SHEET (<=768px)
+
+   On mobile the custom dropdown panel becomes a bottom sheet
+   that slides up from the bottom of the viewport.  This keeps
+   the Styles Manager header visible at all times, gives the
+   user a clear close affordance, and uses the standard mobile
+   picker pattern that feels native on iOS and Android.
+
+   Desktop behaviour is completely unaffected (all rules are
+   wrapped inside this media query).
+   ============================================================ */
+@media (max-width: 768px) {
+
+    /* ── Dimming backdrop ──────────────────────────────────────
+       Rendered via body::after so it lives below the sheet but
+       above everything else.  Tapping it closes the sheet via
+       the JS outside-click handler.                           */
+    body.pw_icon_dd_open::after {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 99998;
+        pointer-events: all;
+    }
+
+    /* ── Bottom sheet panel ────────────────────────────────────
+       Overrides position:absolute and all JS-applied flip/up
+       classes so the panel anchors to the bottom of the
+       viewport regardless of where the trigger lives.         */
+    .pw_icon_dropdown_panel,
+    .pw_icon_dropdown_panel.pw_icon_panel_flip,
+    .pw_icon_dropdown_panel.pw_icon_panel_up {
+        position: fixed !important;
+        /* Anchor to bottom edge, full width with gutters */
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: auto !important;
+        width: auto !important;
+        transform: none !important;
+        /* Tall enough to show a good portion of the grid */
+        max-height: 72vh;
+        /* Rounded top corners — standard bottom-sheet idiom */
+        border-radius: 20px 20px 0 0 !important;
+        border-bottom: none !important;
+        /* Float above the backdrop */
+        z-index: 99999 !important;
+    }
+
+    /* ── Mobile sheet header ───────────────────────────────────
+       Contains a drag handle, title, and a close button.
+       Hidden on desktop via the base rule above.              */
+    .pw_icon_mobile_header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 10px 16px 6px;
+        flex-shrink: 0;
+        gap: 8px;
+        border-bottom: 1px solid var(--pw-glass-border);
+    }
+
+    /* Drag handle visual cue */
+    .pw_icon_mobile_handle {
+        width: 40px;
+        height: 4px;
+        background: var(--pw-glass-border);
+        border-radius: 2px;
+        flex-shrink: 0;
+    }
+
+    /* Title + close button row */
+    .pw_icon_mobile_header {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        padding: 14px 16px 10px;
+        gap: 0;
+        position: relative;
+    }
+
+    /* The handle sits above everything via a pseudo-element so
+       the flex row doesn't need to break for it               */
+    .pw_icon_mobile_header::before {
+        content: '';
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 40px;
+        height: 4px;
+        background: color-mix(in srgb, var(--pw-glass-border) 80%, transparent);
+        border-radius: 2px;
+    }
+
+    .pw_icon_mobile_title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--pw-text-primary);
+        margin-top: 6px;
+    }
+
+    .pw_icon_mobile_close {
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid var(--pw-glass-border);
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--pw-text-secondary);
+        cursor: pointer;
+        font-size: 1rem;
+        margin-top: 4px;
+        transition: all var(--pw-transition);
+        /* Enlarge tap target without affecting layout */
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+
+    .pw_icon_mobile_close:active {
+        background: rgba(255, 255, 255, 0.14);
+        color: var(--pw-text-primary);
+    }
+
+    /* ── Grid tuning ───────────────────────────────────────────*/
+    .pw_icon_grid {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 6px;
+        padding: 10px 12px;
+    }
+
+    .pw_icon_grid_item {
+        padding: 12px 4px;
+        font-size: 0.65rem;
+    }
+
+    .pw_icon_grid_item i {
+        font-size: 1.25rem;
+    }
+
+    /* ── Search bar ─────────────────────────────────────────────
+       font-size ≥ 16px prevents iOS auto-zoom on focus        */
+    .pw_icon_search {
+        font-size: 1rem;
+    }
+
+    .pw_icon_search_wrap {
+        padding: 10px 14px;
+    }
 }

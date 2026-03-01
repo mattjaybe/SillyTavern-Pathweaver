@@ -55,12 +55,25 @@
     };
 
     // Font Awesome icons for custom styles
+    // DEFAULT CATEGORY ICONS listed first so built-in styles always have their icon available
     const AVAILABLE_ICONS = [
+        // ── Default icons used by built-in categories ──────────────────────
+        // Main: Context-Aware, Plot Twist, New Character, Explicit
+        'fa-compass', 'fa-shuffle', 'fa-user-plus', 'fa-fire',
+        // Genre: Action, Comedy, Fantasy, Horror, Mystery, Noir, Romance, Sci-Fi, Thriller
+        'fa-person-running', 'fa-masks-theater', 'fa-hat-wizard', 'fa-ghost',
+        'fa-magnifying-glass', 'fa-user-secret', 'fa-heart', 'fa-rocket', 'fa-stopwatch',
+        // ── General purpose ─────────────────────────────────────────────────
         'fa-star', 'fa-bolt', 'fa-moon', 'fa-sun', 'fa-cloud', 'fa-leaf',
         'fa-feather', 'fa-gem', 'fa-crown', 'fa-mask', 'fa-skull', 'fa-dragon',
-        'fa-hat-wizard', 'fa-wand-sparkles', 'fa-glasses', 'fa-dice', 'fa-puzzle-piece',
+        'fa-wand-sparkles', 'fa-glasses', 'fa-dice', 'fa-puzzle-piece',
         'fa-key', 'fa-lock', 'fa-book', 'fa-scroll', 'fa-map', 'fa-compass-drafting',
-        'fa-palette', 'fa-music', 'fa-film', 'fa-gamepad', 'fa-rocket', 'fa-anchor'
+        'fa-palette', 'fa-music', 'fa-film', 'fa-gamepad', 'fa-anchor',
+        // ── Extra icons ──────────────────────────────────────────────────────
+        'fa-scissors', 'fa-shield', 'fa-wand-magic', 'fa-eye', 'fa-brain',
+        'fa-tornado', 'fa-snowflake', 'fa-fire-flame-curved', 'fa-tree',
+        'fa-hand-fist', 'fa-hourglass-half', 'fa-spider', 'fa-cat',
+        'fa-chess-queen', 'fa-staff-snake'
     ];
 
     /** Title font dropdown: value -> { fontFamily, label } for display and option styling */
@@ -183,7 +196,17 @@
     // ============================================================
 
     function getAllCategories() {
-        const categories = { ...MAIN_CATEGORIES, ...GENRE_CATEGORIES };
+        // Deep-copy so we can overlay customizations without mutating the originals
+        const categories = {};
+        for (const [k, v] of Object.entries(MAIN_CATEGORIES))  categories[k] = { ...v };
+        for (const [k, v] of Object.entries(GENRE_CATEGORIES)) categories[k] = { ...v };
+
+        // Apply saved icon customizations for built-in styles
+        if (settings.builtin_icon_customizations) {
+            for (const [id, icon] of Object.entries(settings.builtin_icon_customizations)) {
+                if (categories[id]) categories[id].icon = icon;
+            }
+        }
 
         if (settings.custom_styles?.length) {
             for (const style of settings.custom_styles) {
@@ -1424,9 +1447,10 @@ GUIDELINES:
         // Main categories
         for (const [key, cat] of Object.entries(MAIN_CATEGORIES)) {
             if (cat.nsfw && !settings.show_explicit) continue;
+            const sIcon = allCategories[key]?.icon || cat.icon;
             surpriseItems += `
                 <button class="pw_dropdown_item pw_surprise_item" data-surprise-category="${key}">
-                    <i class="fa-solid ${cat.icon}"></i>
+                    <i class="fa-solid ${sIcon}"></i>
                     <span>${cat.name}</span>
                 </button>`;
         }
@@ -1434,9 +1458,10 @@ GUIDELINES:
         const sortedGenresSurprise = Object.entries(GENRE_CATEGORIES).sort((a, b) => a[1].name.localeCompare(b[1].name));
         for (const [key, cat] of sortedGenresSurprise) {
             if (cat.nsfw && !settings.show_explicit) continue;
+            const sIcon = allCategories[key]?.icon || cat.icon;
             surpriseItems += `
                 <button class="pw_dropdown_item pw_surprise_item" data-surprise-category="${key}">
-                    <i class="fa-solid ${cat.icon}"></i>
+                    <i class="fa-solid ${sIcon}"></i>
                     <span>${cat.name}</span>
                 </button>`;
         }
@@ -1501,13 +1526,14 @@ GUIDELINES:
 
         for (const [key, cat] of Object.entries(MAIN_CATEGORIES)) {
             if (cat.nsfw && !settings.show_explicit) continue;
+            const bIcon = allCategories[key]?.icon || cat.icon;
 
             const btnHtml = `
                 <button class="pw_cat_btn"
                         data-category="${key}"
                         data-name="${cat.name}"
                         title="${cat.name}: ${cat.tooltip}">
-                    <i class="fa-solid ${cat.icon}"></i>
+                    <i class="fa-solid ${bIcon}"></i>
                 </button>`;
 
             builtinButtonsHtml += btnHtml;
@@ -1547,9 +1573,10 @@ GUIDELINES:
 
         for (const [key, cat] of sortedGenres) {
             if (cat.nsfw && !settings.show_explicit) continue;
+            const gIcon = allCategories[key]?.icon || cat.icon;
             genreItems += `
                 <button class="pw_dropdown_item" data-category="${key}">
-                    <i class="fa-solid ${cat.icon}"></i>
+                    <i class="fa-solid ${gIcon}"></i>
                     <span>${cat.name}</span>
                 </button>`;
 
@@ -1756,8 +1783,25 @@ GUIDELINES:
             const dropdown = bar.querySelector('.pw_category_dropdown');
             if (!buttons || !dropdown) return;
 
-            // If bar is narrower than 300px, show fallback dropdown instead of buttons
-            if (bar.offsetWidth < 300) {
+            // Make buttons visible temporarily so we can measure naturally
+            const prevDisplay = buttons.style.display;
+            buttons.style.display = 'flex';
+            buttons.style.flexWrap = 'nowrap';
+
+            const barRight = bar.querySelector('.pw_bar_right');
+            const title = bar.querySelector('.pw_bar_title');
+            // Sum fixed-width elements; title is hidden on very narrow screens
+            const usedWidth =
+                (title && title.offsetWidth > 0 ? title.offsetWidth + 8 : 0) +
+                (barRight ? barRight.offsetWidth + 8 : 52) +
+                32; // minimize btn + gaps
+
+            const availableForButtons = bar.offsetWidth - usedWidth;
+
+            // Only collapse to dropdown if even the smallest useful slice of buttons can't show
+            // (< 2 buttons worth ~80px). On mobile the buttons container is scrollable so
+            // all buttons remain accessible even on narrow screens.
+            if (availableForButtons < 80) {
                 buttons.style.display = 'none';
                 dropdown.style.display = 'block';
             } else {
@@ -1772,7 +1816,6 @@ GUIDELINES:
             const observer = new ResizeObserver(checkWidth);
             observer.observe(bar);
         } else {
-            // Fallback for older browsers
             window.addEventListener('resize', checkWidth);
         }
     }
@@ -2858,10 +2901,28 @@ GUIDELINES:
                                     </div>
                                     <div class="pw_editor_row">
                                         <label>Icon</label>
-                                        <select id="pw_edit_icon"></select>
-                                        <span id="pw_edit_icon_preview" style="font-size: 1.5rem; margin-left: 10px;">
-                                            <i class="fa-solid fa-star"></i>
-                                        </span>
+                                        <div class="pw_icon_dropdown_wrap">
+                                            <select id="pw_edit_icon" style="display:none;"></select>
+                                            <button type="button" class="pw_icon_dropdown_trigger" id="pw_icon_dropdown" data-value="fa-star">
+                                                <i class="fa-solid fa-star pw_icon_dd_icon"></i>
+                                                <span class="pw_icon_dd_label">star</span>
+                                                <i class="fa-solid fa-chevron-down pw_icon_dd_chevron"></i>
+                                            </button>
+                                            <div class="pw_icon_dropdown_panel" id="pw_icon_panel">
+                                                <div class="pw_icon_mobile_header">
+                                                    <div class="pw_icon_mobile_handle"></div>
+                                                    <span class="pw_icon_mobile_title">Choose Icon</span>
+                                                    <button type="button" class="pw_icon_mobile_close" id="pw_icon_mobile_close" aria-label="Close icon picker">
+                                                        <i class="fa-solid fa-xmark"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="pw_icon_search_wrap">
+                                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                                    <input type="text" class="pw_icon_search" id="pw_icon_search" placeholder="Search icons...">
+                                                </div>
+                                                <div class="pw_icon_grid" id="pw_icon_grid"></div>
+                                            </div>
+                                        </div>
                                     </div>
                                     <div class="pw_editor_row" style="flex-direction: column; align-items: flex-start; flex: 1;">
                                         <label style="margin-bottom: 8px;">System Prompt</label>
@@ -2898,10 +2959,18 @@ GUIDELINES:
         jQuery('body').append(modalHtml);
         stylesManagerModal = jQuery('#pw_styles_manager');
 
-        // Populate icon dropdown
+        // Populate hidden select (for value tracking) and custom icon grid
         const iconSelect = jQuery('#pw_edit_icon');
+        const iconGrid  = jQuery('#pw_icon_grid');
         AVAILABLE_ICONS.forEach(icon => {
-            iconSelect.append(`<option value="${icon}">${icon.replace('fa-', '')}</option>`);
+            const label = icon.replace('fa-', '');
+            iconSelect.append(`<option value="${icon}">${label}</option>`);
+            iconGrid.append(`
+                <button type="button" class="pw_icon_grid_item" data-icon="${icon}" title="${label}">
+                    <i class="fa-solid ${icon}"></i>
+                    <span>${label}</span>
+                </button>
+            `);
         });
 
         // Render the styles list
@@ -2918,14 +2987,18 @@ GUIDELINES:
         const listContainer = jQuery('#pw_style_list');
         listContainer.empty();
 
+        // getAllCategories() already merges builtin_icon_customizations so icons reflect saved overrides
+        const allCats = getAllCategories();
+
         // Built-in styles first
         for (const [key, cat] of Object.entries(MAIN_CATEGORIES)) {
             if (cat.nsfw && !settings.show_explicit) continue;
+            const displayIcon = allCats[key]?.icon || cat.icon;
 
             listContainer.append(`
                 <div class="pw_style_item builtin" data-style-id="${key}" data-builtin="true">
                     <div class="pw_style_icon">
-                        <i class="fa-solid ${cat.icon}"></i>
+                        <i class="fa-solid ${displayIcon}"></i>
                     </div>
                     <div class="pw_style_info">
                         <div class="pw_style_name">${cat.name}</div>
@@ -2943,11 +3016,12 @@ GUIDELINES:
         // Genre styles
         for (const [key, cat] of Object.entries(GENRE_CATEGORIES)) {
             if (cat.nsfw && !settings.show_explicit) continue;
+            const displayIcon = allCats[key]?.icon || cat.icon;
 
             listContainer.append(`
                 <div class="pw_style_item builtin" data-style-id="${key}" data-builtin="true">
                     <div class="pw_style_icon">
-                        <i class="fa-solid ${cat.icon}"></i>
+                        <i class="fa-solid ${displayIcon}"></i>
                     </div>
                     <div class="pw_style_info">
                         <div class="pw_style_name">${cat.name}</div>
@@ -3023,9 +3097,86 @@ GUIDELINES:
             currentEditStyle = null;
         });
 
-        // Icon preview
-        jQuery('#pw_edit_icon').on('change', function () {
-            jQuery('#pw_edit_icon_preview i').removeClass().addClass(`fa-solid ${this.value}`);
+        // Remove any prior document handlers before re-adding (modal is recreated each open)
+        jQuery(document)
+            .off('click.pw_icon_dd')
+            .off('click.pw_icon_dd_outside')
+            .off('input.pw_icon_search')
+            .off('click.pw_icon_grid');
+
+        // Shared close helper — removes open state and mobile backdrop class
+        function closeIconPanel() {
+            jQuery('#pw_icon_panel').removeClass('open pw_icon_panel_flip pw_icon_panel_up');
+            jQuery('body').removeClass('pw_icon_dd_open');
+        }
+
+        // Custom icon dropdown – trigger opens/closes the panel
+        jQuery(document).on('click.pw_icon_dd', '#pw_icon_dropdown', function (e) {
+            e.stopPropagation();
+            const panel = jQuery('#pw_icon_panel');
+            const isOpen = panel.hasClass('open');
+            const isMobile = window.innerWidth <= 768;
+
+            if (!isOpen) {
+                panel.removeClass('pw_icon_panel_flip pw_icon_panel_up');
+                panel.css({ top: '', bottom: '', left: '', right: '', transform: '' });
+                panel.addClass('open');
+
+                if (isMobile) {
+                    // Mobile bottom-sheet — CSS handles positioning, just add
+                    // the body class to activate the dimming backdrop.
+                    jQuery('body').addClass('pw_icon_dd_open');
+                } else {
+                    // Desktop: measure and apply flip/up corrections as normal
+                    requestAnimationFrame(() => {
+                        const rect = panel[0].getBoundingClientRect();
+                        const wrap = panel.closest('.pw_icon_dropdown_wrap')[0];
+                        const wrapRect = wrap ? wrap.getBoundingClientRect() : rect;
+
+                        if (rect.right > window.innerWidth - 8) {
+                            panel.addClass('pw_icon_panel_flip');
+                        }
+                        if (rect.bottom > window.innerHeight - 8 && wrapRect.top > rect.height + 12) {
+                            panel.addClass('pw_icon_panel_up');
+                        }
+                    });
+                }
+
+                jQuery('#pw_icon_search').val('').trigger('input').focus();
+            } else {
+                closeIconPanel();
+            }
+        });
+
+        // Mobile sheet close button (×) — fires before the outside-click guard
+        jQuery(document).on('click.pw_icon_dd', '#pw_icon_mobile_close', function (e) {
+            e.stopPropagation();
+            closeIconPanel();
+        });
+
+        // Close when tapping the dimming backdrop.
+        // Guard: ignore clicks that land on the panel or the trigger button.
+        jQuery(document).on('click.pw_icon_dd_outside', function (e) {
+            if (!jQuery(e.target).closest('.pw_icon_dropdown_panel, .pw_icon_dropdown_wrap').length) {
+                closeIconPanel();
+            }
+        });
+
+        // Search filter
+        jQuery(document).on('input.pw_icon_search', '#pw_icon_search', function () {
+            const q = this.value.toLowerCase();
+            jQuery('#pw_icon_grid .pw_icon_grid_item').each(function () {
+                const match = jQuery(this).data('icon').replace('fa-', '').includes(q);
+                jQuery(this).toggle(match);
+            });
+        });
+
+        // Select icon from grid
+        jQuery(document).on('click.pw_icon_grid', '#pw_icon_grid .pw_icon_grid_item', function (e) {
+            e.stopPropagation();
+            const icon = jQuery(this).data('icon');
+            setIconDropdown(icon);
+            closeIconPanel();
         });
 
         // Save style
@@ -3048,11 +3199,15 @@ GUIDELINES:
             }
         });
 
-        // Reset prompt (built-in only)
+        // Reset prompt + icon (built-in only)
         jQuery('#pw_reset_prompt').on('click', async () => {
             if (currentEditStyle && currentEditStyle.builtin) {
                 const original = await loadBuiltinPrompt(currentEditStyle.id);
                 jQuery('#pw_edit_prompt').val(original);
+                // Also restore the original default icon
+                const allCatsOrig = { ...MAIN_CATEGORIES, ...GENRE_CATEGORIES };
+                const originalIcon = allCatsOrig[currentEditStyle.id]?.icon || 'fa-star';
+                setIconDropdown(originalIcon);
                 showToast('Reset to default!');
             } else {
                 jQuery('#pw_edit_prompt').val(defaultTemplate);
@@ -3085,6 +3240,21 @@ GUIDELINES:
         });
     }
 
+    /** Update the custom icon dropdown trigger UI and hidden select value */
+    function setIconDropdown(icon) {
+        const safe = icon || 'fa-star';
+        const label = safe.replace('fa-', '');
+        const trigger = jQuery('#pw_icon_dropdown');
+        trigger.data('value', safe);
+        trigger.find('.pw_icon_dd_icon').removeClass().addClass(`fa-solid ${safe} pw_icon_dd_icon`);
+        trigger.find('.pw_icon_dd_label').text(label);
+        // Sync hidden select
+        jQuery('#pw_edit_icon').val(safe);
+        // Highlight active item in grid
+        jQuery('#pw_icon_grid .pw_icon_grid_item').removeClass('active');
+        jQuery(`#pw_icon_grid .pw_icon_grid_item[data-icon="${safe}"]`).addClass('active');
+    }
+
     async function openEditorView(styleId, isNew = false, isBuiltin = false) {
         const flipper = jQuery('#pw_manager_flipper');
         const nameInput = jQuery('#pw_edit_name');
@@ -3098,7 +3268,7 @@ GUIDELINES:
             currentEditStyle = { id: null, builtin: false, isNew: true };
             titleEl.text('Create New Suggestion Style');
             nameInput.val('').prop('disabled', false);
-            iconSelect.val('fa-star').trigger('change');
+            setIconDropdown('fa-star');
             promptArea.val(defaultTemplate);
             deleteBtn.hide();
         } else if (isBuiltin) {
@@ -3108,7 +3278,9 @@ GUIDELINES:
             currentEditStyle = { id: styleId, builtin: true, isNew: false };
             titleEl.text(`Edit: ${cat.name}`);
             nameInput.val(cat.name).prop('disabled', true);
-            iconSelect.val(cat.icon).trigger('change');
+            // Use the saved icon override if present, otherwise fall back to category default
+            const savedIcon = settings.builtin_icon_customizations?.[styleId] || cat.icon;
+            setIconDropdown(savedIcon);
 
             // Load the prompt (check for user customization first)
             let prompt = promptCache[styleId];
@@ -3125,7 +3297,7 @@ GUIDELINES:
             currentEditStyle = { id: styleId, builtin: false, isNew: false };
             titleEl.text(`Edit: ${style.name}`);
             nameInput.val(style.name).prop('disabled', false);
-            iconSelect.val(style.icon).trigger('change');
+            setIconDropdown(style.icon || 'fa-star');
             promptArea.val(style.prompt);
             deleteBtn.show();
         }
@@ -3135,17 +3307,28 @@ GUIDELINES:
 
     function saveCurrentStyle() {
         const name = jQuery('#pw_edit_name').val().trim();
-        const icon = jQuery('#pw_edit_icon').val();
+        // Read icon from our custom dropdown (hidden select is kept in sync)
+        const icon = jQuery('#pw_edit_icon').val() || jQuery('#pw_icon_dropdown').data('value') || 'fa-star';
         const prompt = jQuery('#pw_edit_prompt').val().trim();
 
         if (!currentEditStyle) return;
 
         if (currentEditStyle.builtin) {
-            // Save customization for built-in style
+            // Save customization for built-in style (prompt + icon)
             promptCache[currentEditStyle.id] = prompt;
-            // Store in settings for persistence
             if (!settings.builtin_customizations) settings.builtin_customizations = {};
             settings.builtin_customizations[currentEditStyle.id] = prompt;
+
+            // Save icon customization
+            const allCatsOrig = { ...MAIN_CATEGORIES, ...GENRE_CATEGORIES };
+            const originalIcon = allCatsOrig[currentEditStyle.id]?.icon;
+            if (!settings.builtin_icon_customizations) settings.builtin_icon_customizations = {};
+            if (icon && icon !== originalIcon) {
+                settings.builtin_icon_customizations[currentEditStyle.id] = icon;
+            } else {
+                delete settings.builtin_icon_customizations[currentEditStyle.id];
+            }
+
             saveSettings();
             showToast('Built-in style customized!');
         } else {
@@ -4275,6 +4458,12 @@ GUIDELINES:
         jQuery(document).off('mousedown.pathweaver');
         jQuery(document).off('keydown.pathweaver_suggestions');
         jQuery(document).off('click.pw_dropdown_close');
+        jQuery(document).off('click.pw_icon_dd');
+        jQuery(document).off('click.pw_icon_dd_outside');
+        jQuery(document).off('input.pw_icon_search');
+        jQuery(document).off('click.pw_icon_grid');
+        jQuery('body').removeClass('pw_icon_dd_open');
+        jQuery('body').removeClass('pw_icon_dd_open');
 
         // Remove UI elements
         jQuery('.pw_action_bar').remove();
