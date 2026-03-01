@@ -3220,6 +3220,23 @@
     color: var(--pw-text-secondary);
 }
 
+.pw_surprise_endless_badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    padding: 5px 10px;
+    border-bottom: 1px solid var(--pw-glass-border);
+    margin-bottom: 4px;
+    color: var(--pw-accent, #a78bfa);
+    opacity: 0.9;
+    letter-spacing: 0.02em;
+}
+
+.pw_surprise_endless_badge i {
+    font-size: 0.85em;
+}
+
 .pw_surprise_clear_btn {
     background: none;
     border: 1px solid var(--pw-danger, #ef4444);

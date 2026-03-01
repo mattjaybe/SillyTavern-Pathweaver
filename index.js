@@ -114,7 +114,8 @@
         hide_animated_bar: false,
         surprise_depth_min: 2,      // minimum messages away (used for random range or fixed min)
         surprise_depth_max: 6,      // maximum messages away (used for random range or fixed max)
-        surprise_randomize: true    // randomize depth between min and max
+        surprise_randomize: true,   // randomize depth between min and max
+        surprise_endless: false     // auto-rearm a new surprise after each one fires
     });
 
 
@@ -1466,6 +1467,9 @@ GUIDELINES:
                         <i class="fa-solid fa-wand-sparkles"></i> Surprise Me
                         <span class="pw_setting_tooltip_icon" title="Surprise Me secretly injects an AI-generated suggestion into the chat context a set number of messages before it fires. Pick a style, and Pathweaver will quietly arm a hidden prompt. When the countdown hits, the suggestion appears naturally — like the story took an unexpected turn on its own.">?</span>
                     </div>
+                    ${settings.surprise_endless ? `<div class="pw_surprise_endless_badge">
+                        <i class="fa-solid fa-infinity"></i> Endless Surprises active
+                    </div>` : ''}
                     ${surpriseCount > 0 ? `<div class="pw_surprise_active_info">
                         <span class="pw_surprise_active_info_label">
                             <i class="fa-solid fa-circle-check" style="color: var(--pw-success);"></i>
@@ -2509,6 +2513,15 @@ GUIDELINES:
                                 <i class="fa-solid fa-wand-sparkles"></i> Surprise Me
                                 <span class="pw_setting_tooltip_icon" title="Surprise Me secretly injects an AI-generated suggestion into the chat context a set number of messages before it fires. Pick a style, and Pathweaver will quietly arm a hidden prompt. When the countdown hits, the suggestion appears naturally — like the story took an unexpected turn on its own.">?</span>
                             </h4>
+                            <div class="pw_setting_row">
+                                <span class="pw_setting_label"><i class="fa-solid fa-infinity"></i> Endless Surprises
+                                    <span class="pw_setting_tooltip_icon" title="Automatically generates and arms a fresh surprise the moment the previous one fires. The story never stops surprising you — until you turn this off.">?</span>
+                                </span>
+                                <div class="pw_toggle ${settings.surprise_endless ? 'active' : ''}" data-setting="surprise_endless"></div>
+                            </div>
+                            <p class="pw_setting_hint" style="margin: -4px 0 10px 0; font-size: 0.78rem; opacity: 0.8;">
+                                A new surprise is silently queued the moment the previous one fires.
+                            </p>
                             <div class="pw_setting_row">
                                 <span class="pw_setting_label"><i class="fa-solid fa-shuffle"></i> Randomize depth</span>
                                 <div class="pw_toggle ${settings.surprise_randomize ? 'active' : ''}" data-setting="surprise_randomize"></div>
@@ -3681,6 +3694,7 @@ GUIDELINES:
             fetchAndPopulateOllamaModels('#pw_ollama_model');
         }
         renderSurpriseQueue();
+        jQuery('#pw_surprise_endless').prop('checked', settings.surprise_endless);
     }
 
     function updateProviderVisibility(source) {
@@ -3765,6 +3779,7 @@ GUIDELINES:
         jQuery('#pw_stream_suggestions').prop('checked', settings.stream_suggestions);
         // Surprise Me
         jQuery('#pw_surprise_randomize').prop('checked', settings.surprise_randomize);
+        jQuery('#pw_surprise_endless').prop('checked', settings.surprise_endless);
         jQuery('#pw_surprise_depth_min').val(settings.surprise_depth_min);
         jQuery('#pw_surprise_depth_max').val(settings.surprise_depth_max);
         if (settings.surprise_randomize) {
@@ -3810,6 +3825,7 @@ GUIDELINES:
 
         // Surprise Me
         jQuery('.pw_toggle[data-setting="surprise_randomize"]').toggleClass('active', settings.surprise_randomize);
+        jQuery('.pw_toggle[data-setting="surprise_endless"]').toggleClass('active', settings.surprise_endless);
         jQuery('#pw_sm_surprise_depth_min').val(settings.surprise_depth_min);
         jQuery('#pw_sm_surprise_depth_max').val(settings.surprise_depth_max);
         if (settings.surprise_randomize) {
@@ -4051,9 +4067,18 @@ GUIDELINES:
             openStyleEditor();
         });
 
+        // Surprise Me: endless toggle
+        jQuery('#pw_surprise_endless').on('change', function () {
+            settings.surprise_endless = this.checked;
+            saveSettings();
+            syncSettingsToModal();
+            if (this.checked) {
+                showToast('Endless Surprises enabled — surprises will keep arming themselves!');
+            }
+        });
+
         // Surprise Me: randomize toggle
-        jQuery('#pw_surprise_randomize').on('change', function () {
-            settings.surprise_randomize = this.checked;
+        jQuery('#pw_surprise_randomize').on('change', function () {            settings.surprise_randomize = this.checked;
             if (settings.surprise_randomize) {
                 jQuery('#pw_surprise_range_rows').show();
                 jQuery('#pw_surprise_fixed_hint').hide();
@@ -4159,9 +4184,15 @@ GUIDELINES:
 
             if (s.injected) {
                 clearSurprisePrompt(s.key);
+                const firedCategory = s.category; // capture before splice
                 activeSurprises.splice(i, 1);
                 changed = true;
                 log('Surprise', s.key, 'cleared after firing');
+
+                // Endless Surprises: silently queue a fresh one with the same style
+                if (settings.surprise_endless) {
+                    scheduleEndlessSurprise(firedCategory);
+                }
             } else if (newMessages >= s.triggerAfter) {
                 const ok = injectSurprisePrompt(s.text, 1, s.key);
                 if (ok) {
@@ -4176,6 +4207,39 @@ GUIDELINES:
             saveSurpriseQueue();
             renderSurpriseQueue();
             createActionBar();
+        }
+    }
+
+    /**
+     * Silently generate and arm a new surprise for the given category.
+     * Used by Endless Surprises to keep the queue perpetually loaded
+     * without interrupting the user.
+     */
+    async function scheduleEndlessSurprise(category) {
+        log('Endless Surprises: scheduling background surprise for category', category);
+        try {
+            const endlessAbort = new AbortController();
+            const text = await generateSurpriseText(category, endlessAbort.signal);
+
+            const dMin = Math.max(1, Math.min(12, settings.surprise_depth_min || 2));
+            const dMax = Math.max(dMin, Math.min(12, settings.surprise_depth_max || 6));
+            const triggerAfter = settings.surprise_randomize
+                ? Math.floor(Math.random() * (dMax - dMin + 1)) + dMin
+                : dMin;
+
+            const stContext = SillyTavern.getContext();
+            const baseMessageCount = stContext?.chat?.length ?? 0;
+            const key = `pathweaver_surprise_${surpriseKeyCounter++}`;
+
+            activeSurprises.push({ key, category, triggerAfter, baseMessageCount, text, injected: false });
+            saveSurpriseQueue();
+            renderSurpriseQueue();
+            createActionBar();
+
+            log('Endless Surprises: new surprise armed for category', category, '— fires in', triggerAfter, 'messages');
+        } catch (err) {
+            if (err.name === 'AbortError') return;
+            warn('Endless Surprises: background generation failed:', err.message);
         }
     }
 
