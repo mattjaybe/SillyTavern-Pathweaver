@@ -4,6 +4,11 @@
 
 ## 🆕 What's New
 
+### ***ver 1.4.2***
+- Fixes changes not being saved in Style Manager
+- Added new icons to choose from
+- (Mobile) Buttons on Pathweaver bar can be swiped horizontally when too many buttons are shown
+
 ### ***ver 1.4.0***
 - New setting available: Endless Surprises. A new surprise is silently queued the moment the previous one fires. Can be enabled or disabled.
 
@@ -13,11 +18,6 @@
 ### ***ver 1.2 & 1.2.1***
 - Added option to hide the animated bar in the settings
 - 1.2.1: Ensures that the hide/show button remains clickable when the <a href="https://github.com/mattjaybe/SillyTavern-Larson">Larson extension</a> is installed
-
-### ***ver 1.1***
-- You can now enable streaming in settings, which streams the suggestions to each card one at a time rather than waiting for all of them to be filled. Works with Ollama, OpenAI-compatible endpoints, and any Connection Profile/Main API that supports streaming
-- Setting to change the font of the title 'Pathweaver' on the bar, or even hide it
-- Misc. bug fixes some users pointed out
 
 ![Version](https://img.shields.io/badge/SillyTavern-v1.12%2B-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
@@ -275,6 +275,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 <p align="center">
   Made with ❤️ for the SillyTavern community
 </p>
+
 
 
 
