@@ -4,6 +4,11 @@
 
 ## 🆕 What's New
 
+### ***ver 1.4.5***
+- (Mobile) Fixes button menus not working
+- (Mobile) Shifted buttons to the right to fix issues of them disappearing, removed 'Pathweaver' title
+- Fixed issue where settings weren't being saved
+
 ### ***ver 1.4.2***
 - Fixes changes not being saved in Style Manager
 - Added new icons to choose from
@@ -275,6 +280,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 <p align="center">
   Made with ❤️ for the SillyTavern community
 </p>
+
 
 
 
