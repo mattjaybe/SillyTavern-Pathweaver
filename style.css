@@ -1464,85 +1464,85 @@
 
 @media (max-width: 768px) {
 
-    /* ── Action Bar: single row, scrollable buttons, nothing clipped ── */
+    /* ── Action Bar ─────────────────────────────────────────────────────────
+       Wrapping layout so dropdown menus are never clipped.
+       overflow-x: auto on any ancestor creates an overflow context that
+       silently clips position:absolute children — exactly what every
+       upward-opening dropdown menu is.  flex-wrap: wrap + overflow: visible
+       is the only layout that avoids this without JS hacks.
+       Buttons are compact (32 px) so all 8 fit on one row on a ~390 px
+       screen: 8×32 + 7×4 gap = 284 px + gear 32 px + auto margin ≈ 324 px,
+       well inside the ~374 px usable width.                               */
     .pw_action_bar {
         padding: 6px 8px;
-        min-height: 48px;
+        min-height: 44px;
         gap: 4px;
-        /* Single row — no wrapping so title + buttons + right stay on one line */
-        flex-wrap: nowrap;
+        flex-wrap: wrap;
+        justify-content: flex-start;
         align-items: center;
-        overflow: hidden; /* clip vertically but buttons scroll horizontally */
+        overflow: visible;
     }
 
-    /* Show title as compact abbreviation so it stays visible without eating space */
+    /* Hide title — saves horizontal space for buttons */
     .pw_bar_title {
-        font-size: 0.72rem !important;
-        letter-spacing: 0 !important;
-        margin-right: 4px;
-        flex-shrink: 0;
-        max-width: 30px;
-        overflow: hidden;
-        /* Clip "athweaver" — shows just "P" on very narrow, full word on wider */
-        white-space: nowrap;
-        display: block !important; /* visible but tiny */
-    }
-
-    /* Buttons container: horizontally scrollable, never wraps */
-    .pw_category_buttons {
-        flex: 1;
-        min-width: 0;           /* allow shrinking below content size */
-        overflow-x: auto !important;
-        overflow-y: visible !important;
-        flex-wrap: nowrap !important;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-        padding: 2px 0;
-        margin: 0;
-        gap: 4px !important;
-    }
-
-    .pw_category_buttons::-webkit-scrollbar {
-        display: none;
-    }
-
-    /* Slightly smaller buttons on mobile for more to fit without scrolling */
-    .pw_cat_btn {
-        width: 40px !important;
-        height: 40px !important;
-        font-size: 1.05rem !important;
-        flex-shrink: 0; /* buttons never shrink — they scroll instead */
-    }
-
-    .pw_icon_btn {
-        width: 40px !important;
-        height: 40px !important;
-        flex-shrink: 0;
-    }
-
-    /* Dropdown buttons in bar */
-    .pw_dropdown_btn {
-        width: 40px !important;
-        height: 40px !important;
-        flex-shrink: 0;
-    }
-
-    /* Hide Hover Labels on Mobile (No hover state) */
-    .pw_hover_label {
         display: none !important;
     }
 
-    /* Scroll-hint fade on right edge of buttons so user knows it scrolls */
-    .pw_category_buttons::after {
-        content: '';
-        position: sticky;
-        right: 0;
-        top: 0;
-        bottom: 0;
-        width: 20px;
+    /* Buttons container: wraps freely, never clips menus */
+    .pw_category_buttons {
+        display: flex;
+        flex-wrap: wrap !important;
+        overflow: visible !important;
+        gap: 4px !important;
+        padding: 0;
+        margin: 0;
+        align-items: center;
+    }
+
+    /* Compact buttons — 32 px fits all 8 on one row */
+    .pw_cat_btn {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 0.9rem !important;
+        border-radius: 6px !important;
+    }
+
+    /* Settings / icon buttons match */
+    .pw_icon_btn {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 0.85rem !important;
         flex-shrink: 0;
-        background: linear-gradient(to right, transparent, var(--pw-glass-bg, rgba(20,20,30,0.95)));
-        pointer-events: none;
+    }
+
+    /* Dropdown trigger buttons match */
+    .pw_dropdown_btn {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 0.85rem !important;
+        flex-shrink: 0;
+        border-radius: 6px !important;
+    }
+
+    /* Settings button: swap gear → vertical ellipsis (⋮) on mobile.
+       Font Awesome stores glyphs in ::before content.  Overriding content
+       while the font-family stays FA gives us a different icon with no
+       JS or HTML changes.  \f142 = fa-ellipsis-vertical               */
+    #pw_bar_settings i::before {
+        content: "\f142";
+    }
+
+    /* Minimize button: tall enough to tap comfortably */
+    .pw_minimize_btn {
+        width: 60px;
+        height: 28px;
+        top: -28px;
+        font-size: 0.9rem;
+    }
+
+    /* No hover labels on touch screens */
+    .pw_hover_label {
+        display: none !important;
     }
 
     /* Modal Mobile Styles */
@@ -1923,16 +1923,21 @@
     pointer-events: none;
 }
 
-/* Mobile Tweak: Ensure menu isn't cut off */
+/* Mobile: Dropdown menu — keep centered and fully visible above bar */
 @media (max-width: 768px) {
     .pw_dropdown_menu {
-        width: 180px;
-        left: 0;
-        transform: translateY(10px);
+        /* Widen slightly on mobile for easier tapping */
+        min-width: 200px;
+        /* left:50% + translateX(-50%) centering is inherited from the base rule;
+           do NOT override transform here or horizontal centering breaks.       */
+        max-height: 60vh; /* cap height so menu doesn't fill the whole screen  */
+        /* Higher z-index so menu floats above any ST overlay layers            */
+        z-index: 210000;
     }
 
-    .pw_dropdown_wrapper.active .pw_dropdown_menu {
-        transform: translateY(0);
+    .pw_dropdown_menu.show {
+        /* Ensure the open state is clearly above everything on mobile          */
+        z-index: 210000;
     }
 }
 
@@ -3885,5 +3890,31 @@ details[open] .pw_surprise_queue_chevron {
 
     .pw_icon_search_wrap {
         padding: 10px 14px;
+    }
+}
+
+/* ============================================================
+   MOBILE FIX — float buttons right, hide title  (≤768px only)
+   ============================================================ */
+@media (max-width: 768px) {
+
+    /* Hide "Pathweaver" title to free up space */
+    .pw_bar_title {
+        display: none !important;
+    }
+
+    /* Push buttons to the right by absorbing all free space on the left,
+       adjacent to the three-dot settings button.                       */
+    .pw_category_buttons {
+        margin-left: auto !important;
+        flex-shrink: 0 !important;
+        overflow: visible !important;
+    }
+
+    /* Remove the auto left-margin from bar_right since
+       pw_category_buttons now owns that space             */
+    .pw_bar_right {
+        margin-left: 6px !important;
+        flex-shrink: 0 !important;
     }
 }

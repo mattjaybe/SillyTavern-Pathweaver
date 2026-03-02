@@ -3,10 +3,10 @@
     "loading_order": 100,
     "requires": [],
     "optional": [],
-    "js": "index.js?test5",
-    "css": "style.css?test5",
+    "js": "index.js",
+    "css": "style.css",
     "author": "mattjaybe",
-    "version": "1.4.3",
+    "version": "1.4.5",
     "homePage": "https://github.com/mattjaybe/SillyTavern-Pathweaver",
     "auto_update": true
 }

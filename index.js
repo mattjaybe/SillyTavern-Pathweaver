@@ -1744,7 +1744,9 @@ GUIDELINES:
         // 6. Settings & Minimize
         jQuery(document).on(`click${eventNs}`, '#pw_bar_settings', openSettingsModal);
 
-        jQuery(document).on(`click${eventNs}`, '#pw_minimize_bar', function () {
+        jQuery(document).on(`click${eventNs} touchend${eventNs}`, '#pw_minimize_bar', function (e) {
+            // touchend: prevent the double-fire from the subsequent synthetic click
+            if (e.type === 'touchend') e.preventDefault();
             settings.bar_minimized = !settings.bar_minimized;
             saveSettings();
             createActionBar();
