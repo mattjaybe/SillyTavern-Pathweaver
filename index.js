@@ -2681,6 +2681,14 @@ GUIDELINES:
                 }
             }
 
+            // Surprise Me: clear queue when endless is turned off so no
+            // lingering background generations can fire against local backends.
+            if (setting === 'surprise_endless' && !settings.surprise_endless) {
+                clearAllSurprises();
+                renderSurpriseQueue();
+                createActionBar();
+            }
+
             saveSettings();
             syncSettingsToPanel(); // Sync to extension panel (NOW after logic)
         });
@@ -3548,6 +3556,14 @@ GUIDELINES:
         const stContext = SillyTavern.getContext();
         if (!stContext) throw new Error('SillyTavern context not available');
 
+        // Guard for the default (generateRaw) source — it shares the same backend
+        // pipeline as the main chat generation. If a generation is already in
+        // progress, abort immediately to prevent concurrent requests crashing
+        // local backends such as KoboldCPP.
+        if (settings.source === 'default' && isGenerating) {
+            throw new DOMException('Generation already in progress', 'AbortError');
+        }
+
         const storyContext = extractContext();
         if (!storyContext) throw new Error('No active conversation found. Start a chat first.');
 
@@ -4234,6 +4250,13 @@ GUIDELINES:
             syncSettingsToModal();
             if (this.checked) {
                 showToast('Endless Surprises enabled — surprises will keep arming themselves!');
+            } else {
+                // Clear any pending surprises so no background generation fires
+                // after the user turns off the feature.
+                clearAllSurprises();
+                renderSurpriseQueue();
+                createActionBar();
+                showToast('Endless Surprises disabled — surprise queue cleared.');
             }
         });
 
@@ -4374,10 +4397,29 @@ GUIDELINES:
      * Silently generate and arm a new surprise for the given category.
      * Used by Endless Surprises to keep the queue perpetually loaded
      * without interrupting the user.
+     * A 4-second delay is intentional — it lets KoboldCPP (and other local
+     * backends) fully release CUDA/GPU resources before a second request
+     * arrives, preventing concurrent-request crashes.
      */
     async function scheduleEndlessSurprise(category) {
         log('Endless Surprises: scheduling background surprise for category', category);
+
+        // Guard: never fire a background generation while the main pipeline is active.
+        if (isGenerating) {
+            log('Endless Surprises: skipping — main generation in progress');
+            return;
+        }
         try {
+            // Delay before re-arming so local backends (KoboldCPP, Ollama, etc.)
+            // have time to fully release GPU/CUDA resources after the last response.
+            await new Promise(resolve => setTimeout(resolve, 4000));
+
+            // Re-check after the delay in case a new generation started during the wait.
+            if (isGenerating) {
+                log('Endless Surprises: skipping after delay — main generation started');
+                return;
+            }
+
             const endlessAbort = new AbortController();
             const text = await generateSurpriseText(category, endlessAbort.signal);
 
