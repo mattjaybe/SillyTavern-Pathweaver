@@ -128,7 +128,9 @@
         surprise_depth_min: 2,      // minimum messages away (used for random range or fixed min)
         surprise_depth_max: 6,      // maximum messages away (used for random range or fixed max)
         surprise_randomize: true,   // randomize depth between min and max
-        surprise_endless: false     // auto-rearm a new surprise after each one fires
+        surprise_endless: false,     // auto-rearm a new surprise after each one fires
+        reasoning_mode: false,      // Enable reasoning mode for models like DeepSeek
+        max_output_tokens: 16384     // Configurable max output tokens (default 16K for reasoning models)
     });
 
 
@@ -587,14 +589,32 @@ GUIDELINES:
             let userPrompt = '';
             let calculatedMaxTokens = 0;
 
+            // Calculate base tokens needed for suggestions
+            const tokensPerSuggestion = settings.suggestion_length === 'long' ? 400 : 280;
+            const baseTokensNeeded = settings.suggestions_count * tokensPerSuggestion + 800;
+
+            if (settings.reasoning_mode) {
+                // Reasoning mode: use configurable max_output_tokens, but ensure it's at least enough for suggestions
+                // Reasoning models need more tokens for their thinking process
+                calculatedMaxTokens = Math.max(settings.max_output_tokens || 8192, baseTokensNeeded);
+                log(`Reasoning mode enabled. Using max_tokens: ${calculatedMaxTokens} (config: ${settings.max_output_tokens})`);
+            } else {
+                // Normal mode: use the original formula with reasonable bounds
+                calculatedMaxTokens = Math.min(8192, Math.max(2048, baseTokensNeeded));
+            }
+
             if (category === 'director' && customDirections?.length) {
                 if (mode === 'story_beats') {
                     // Story Beats: 1 input = 1 suggestion (Classic behavior)
                     const dirList = customDirections.map((d, i) => `${i + 1}. ${d}`).join('\n');
                     userPrompt = `[STORY CONTEXT]\n${contextBlock}\n\n[TASK]\nGenerate exactly ${customDirections.length} suggestions, one for each of the following directions.\n\nUSER DIRECTIONS:\n${dirList}\n\nFORMAT:\n[EMOJI] TITLE\nDESCRIPTION\n\nGUIDELINES:\n- PREVENT BLEED: Each suggestion must be strictly isolated to its corresponding input beat. Do NOT combine events from different beats unless explicitly requested.\n- Follow the specific direction for each suggestion EXACTLY.\n- Keep titles punchy and plain text (no asterisks).\n- ${settings.suggestion_length === 'long' ? 'Write 4-6 sentences per suggestion.' : 'Write 2-3 sentences per suggestion.'}\n- Do NOT include any preamble.${settings.stream_suggestions ? '\n\nSTREAMING: Output one complete suggestion at a time. Each suggestion MUST start with [EMOJI] TITLE then DESCRIPTION; end each with --- before the next. Do NOT repeat a title or copy content from one suggestion into another. Every suggestion is independent and self-contained.' : ''}`;
-                    // Be generous with token budgeting; otherwise the model may stop early (e.g. 4/6 suggestions).
-                    const tokensPerSuggestion = settings.suggestion_length === 'long' ? 400 : 280;
-                    calculatedMaxTokens = Math.min(8192, Math.max(2048, customDirections.length * tokensPerSuggestion + 800));
+                    // Recalculate for director mode with custom directions
+                    const dirTokensNeeded = customDirections.length * tokensPerSuggestion + 800;
+                    if (settings.reasoning_mode) {
+                        calculatedMaxTokens = Math.max(settings.max_output_tokens || 8192, dirTokensNeeded);
+                    } else {
+                        calculatedMaxTokens = Math.min(8192, Math.max(2048, dirTokensNeeded));
+                    }
                 } else {
                     // Single Scene: Combined inputs = N suggestions (New behavior)
                     const combinedDirections = customDirections.join(' ');
@@ -603,9 +623,12 @@ GUIDELINES:
                         : 'Each description should be 2-3 sentences, concise but evocative.';
 
                     userPrompt = `[STORY CONTEXT]\n${contextBlock}\n\n[TASK]\nThe user has provided the following direction/scenario for the next scene:\n"${combinedDirections}"\n\nBased on this direction, generate exactly ${settings.suggestions_count} DISTINCT options or variations for how this scene could play out.\n${lengthInstruction}\n\nFORMAT:\n[EMOJI] TITLE\nDESCRIPTION\n\nGUIDELINES:\n- All suggestions must follow the user's direction but offer different execution/flavor.\n- Keep titles punchy and plain text.\n- Do NOT include any preamble.${settings.stream_suggestions ? '\n\nSTREAMING: Output one complete suggestion at a time. Each suggestion MUST start with [EMOJI] TITLE then DESCRIPTION; end each with --- before the next. Do NOT repeat a title or copy content from one suggestion into another. Every suggestion is independent and self-contained.' : ''}`;
-                    // Be generous with token budgeting; otherwise the model may stop early (e.g. 4/6 suggestions).
-                    const tokensPerSuggestion = settings.suggestion_length === 'long' ? 400 : 280;
-                    calculatedMaxTokens = Math.min(8192, Math.max(2048, settings.suggestions_count * tokensPerSuggestion + 800));
+                    // Recalculate for director single scene mode
+                    if (settings.reasoning_mode) {
+                        calculatedMaxTokens = Math.max(settings.max_output_tokens || 8192, baseTokensNeeded);
+                    } else {
+                        calculatedMaxTokens = Math.min(8192, Math.max(2048, baseTokensNeeded));
+                    }
                 }
             } else {
                 const lengthInstruction = settings.suggestion_length === 'long'
@@ -613,8 +636,12 @@ GUIDELINES:
                     : 'Each description should be 2-3 sentences, concise but evocative.';
 
                 userPrompt = `[STORY CONTEXT]\n${contextBlock}\n\n[TASK]\nGenerate exactly ${settings.suggestions_count} distinct suggestions.\n${lengthInstruction}\nFollow the format specified in the system instructions exactly.\nIMPORTANT: Use PLAIN TEXT for titles - do NOT wrap titles in **asterisks**.\nDo NOT include any preamble.${settings.stream_suggestions ? '\n\nSTREAMING: Output one complete suggestion at a time. Each suggestion MUST start with [EMOJI] TITLE then DESCRIPTION; end each with --- before the next. Do NOT repeat a title or copy content from one suggestion into another. Every suggestion is independent and self-contained.' : ''}`;
-                const tokensPerSuggestion = settings.suggestion_length === 'long' ? 400 : 280;
-                calculatedMaxTokens = Math.min(8192, Math.max(2048, settings.suggestions_count * tokensPerSuggestion + 800));
+                // Use the pre-calculated baseTokensNeeded (already calculated above)
+                if (settings.reasoning_mode) {
+                    calculatedMaxTokens = Math.max(settings.max_output_tokens || 8192, baseTokensNeeded);
+                } else {
+                    calculatedMaxTokens = Math.min(8192, Math.max(2048, baseTokensNeeded));
+                }
             }
 
             let result = '';
@@ -817,7 +844,11 @@ GUIDELINES:
         if (!text) return [];
 
         // First, strip any reasoning/thinking tags from the entire response
+        // Handles both XML-style (DeepSeek, etc.) and HTML-style tags
         let cleanedText = text
+            // XML-style reasoning tags: <think>, </think>, <thinking>, </thinking>, etc.
+            .replace(/<\/?(thought|think|thinking|reasoning|reason)\s*[^>]*>/gi, '')
+            // HTML-style reasoning tags
             .replace(/<(thought|think|thinking|reasoning|reason)>[\s\S]*?<\/\1>/gi, '')
             .replace(/<(thought|think|thinking|reasoning|reason)\/>/gi, '')
             .replace(/<(thought|think|thinking|reasoning|reason)\s*\/>/gi, '')
@@ -828,8 +859,8 @@ GUIDELINES:
         const suggestions = [];
         let blocks = [];
 
-        // Broad emoji pattern that catches most emojis
-        const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2300}-\u{23FF}\u{2B50}\u{1FA00}-\u{1FAFF}]/gu;
+        // Broad emoji pattern that catches most emojis including extended ranges
+        const emojiRegex = /[\u{1F000}-\u{1F02B}\u{1F0A0}-\u{1F0FF}\u{1F100}-\u{1F1FF}\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2300}-\u{23FF}\u{2B00}-\u{2BFF}\u{2B50}\u{1FA00}-\u{1FAFF}]/gu;
 
         // Strategy 1: Split by --- separator (various formats)
         blocks = cleanedText.split(/\n---\n|\n---|---\n|\n\n---\n\n/);
@@ -871,6 +902,9 @@ GUIDELINES:
 
             // Strip any remaining reasoning tags from this block
             trimmed = trimmed
+                // XML-style reasoning tags
+                .replace(/<\/?(thought|think|thinking|reasoning|reason)\s*[^>]*>/gi, '')
+                // HTML-style reasoning tags
                 .replace(/<(thought|think|thinking|reasoning|reason)>[\s\S]*?<\/\1>/gi, '')
                 .replace(/<[^>]*>/g, '')
                 .trim();
@@ -937,12 +971,15 @@ GUIDELINES:
     // STREAMING: incremental parse and UI
     // ============================================================
 
-    const emojiRegexStream = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2300}-\u{23FF}\u{2B50}\u{1FA00}-\u{1FAFF}]/gu;
+    const emojiRegexStream = /[\u{1F000}-\u{1F02B}\u{1F0A0}-\u{1F0FF}\u{1F100}-\u{1F1FF}\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2300}-\u{23FF}\u{2B00}-\u{2BFF}\u{2B50}\u{1FA00}-\u{1FAFF}]/gu;
 
     /** Parse a single suggestion block into { emoji, title, description } or null */
     function parseOneBlock(blockText) {
         if (!blockText || typeof blockText !== 'string') return null;
         let trimmed = blockText
+            // XML-style reasoning tags
+            .replace(/<\/?(thought|think|thinking|reasoning|reason)\s*[^>]*>/gi, '')
+            // HTML-style reasoning tags
             .replace(/<(thought|think|thinking|reasoning|reason)>[\s\S]*?<\/\1>/gi, '')
             .replace(/<[^>]*>/g, '')
             .trim();
@@ -2429,6 +2466,26 @@ GUIDELINES:
                             <p class="pw_setting_hint pw_setting_stream_hint">
                                 Cards appear as each suggestion is generated. Works with Ollama and OpenAI-compatible APIs; Connection Profile may also support streaming.
                             </p>
+                            
+                            <!-- Reasoning Mode Settings -->
+                            <div class="pw_setting_row" style="margin-top: 12px;">
+                                <span class="pw_setting_label"><i class="fa-solid fa-brain"></i> Reasoning Mode</span>
+                                <div class="pw_toggle ${settings.reasoning_mode ? 'active' : ''}" data-setting="reasoning_mode"></div>
+                            </div>
+                            <p class="pw_setting_hint">
+                                Enable for reasoning models (DeepSeek, etc.). Increases max tokens and properly handles thinking tags.
+                            </p>
+                            
+                            <div id="pw_modal_max_tokens_row" class="pw_setting_row" style="${settings.reasoning_mode ? 'display: flex' : 'display: none'}; margin-top: 8px;">
+                                <span class="pw_setting_label"><i class="fa-solid fa-terminal"></i> Max Output Tokens</span>
+                                <div class="pw_setting_control">
+                                    <input id="pw_modal_max_output_tokens" type="number" class="text_pole" value="${settings.max_output_tokens || 16384}" min="512" max="128000" step="512" style="width: 100px;"
+                                        title="Maximum tokens for reasoning model output">
+                                </div>
+                            </div>
+                            <p id="pw_modal_max_tokens_hint" class="pw_setting_hint" style="${settings.reasoning_mode ? 'display: block' : 'display: none'}; margin-top: 4px;">
+                                Higher values allow more thinking tokens for reasoning models. 8K-32K recommended.
+                            </p>
                         </div>
 
                         <div class="pw_settings_section">
@@ -2689,6 +2746,19 @@ GUIDELINES:
                 createActionBar();
             }
 
+            // Reasoning mode: show/hide max tokens input
+            if (setting === 'reasoning_mode') {
+                if (settings.reasoning_mode) {
+                    jQuery('#pw_modal_max_tokens_row').show();
+                    jQuery('#pw_modal_max_tokens_hint').show();
+                } else {
+                    jQuery('#pw_modal_max_tokens_row').hide();
+                    jQuery('#pw_modal_max_tokens_hint').hide();
+                }
+                // Also sync to extension panel
+                jQuery('#pw_max_output_tokens_row').toggle(settings.reasoning_mode);
+            }
+
             saveSettings();
             syncSettingsToPanel(); // Sync to extension panel (NOW after logic)
         });
@@ -2724,6 +2794,15 @@ GUIDELINES:
 
         // Suggestion length
         jQuery('#pw_sm_suggestion_length').on('change', function () { settings.suggestion_length = this.value; saveSettings(); syncSettingsToPanel(); });
+
+        // Modal: Max output tokens
+        jQuery('#pw_modal_max_output_tokens').on('change', function () {
+            const val = parseInt(this.value) || 16384;
+            settings.max_output_tokens = Math.max(512, Math.min(128000, val));
+            this.value = settings.max_output_tokens;
+            saveSettings();
+            syncSettingsToPanel();
+        });
 
         // Surprise Me: depth min select
         jQuery('#pw_sm_surprise_depth_min').on('change', function () {
@@ -3953,6 +4032,14 @@ GUIDELINES:
         jQuery('#pw_include_description').prop('checked', settings.include_description);
         jQuery('#pw_include_worldinfo').prop('checked', settings.include_worldinfo);
         jQuery('#pw_stream_suggestions').prop('checked', settings.stream_suggestions);
+        // Reasoning mode settings
+        jQuery('#pw_reasoning_mode').prop('checked', settings.reasoning_mode);
+        jQuery('#pw_max_output_tokens').val(settings.max_output_tokens || 16384);
+        if (settings.reasoning_mode) {
+            jQuery('#pw_max_output_tokens_row').show();
+        } else {
+            jQuery('#pw_max_output_tokens_row').hide();
+        }
         // Surprise Me
         jQuery('#pw_surprise_randomize').prop('checked', settings.surprise_randomize);
         jQuery('#pw_surprise_endless').prop('checked', settings.surprise_endless);
@@ -4017,6 +4104,16 @@ GUIDELINES:
         jQuery('.pw_toggle[data-setting="include_scenario"]').toggleClass('active', settings.include_scenario);
         jQuery('.pw_toggle[data-setting="include_description"]').toggleClass('active', settings.include_description);
         jQuery('.pw_toggle[data-setting="include_worldinfo"]').toggleClass('active', settings.include_worldinfo);
+
+        // Reasoning mode settings
+        jQuery('.pw_toggle[data-setting="reasoning_mode"]').toggleClass('active', settings.reasoning_mode);
+        jQuery('#pw_max_output_tokens').val(settings.max_output_tokens || 16384);
+        if (settings.reasoning_mode) {
+            jQuery('#pw_max_output_tokens_row').show();
+        } else {
+            jQuery('#pw_max_output_tokens_row').hide();
+        }
+
         // Update provider visibility
         jQuery('#pw_sm_profile_box, #pw_sm_ollama_box, #pw_sm_openai_box').hide();
         if (settings.source === 'profile') jQuery('#pw_sm_profile_box').show();
@@ -4213,6 +4310,28 @@ GUIDELINES:
         // Stream suggestions
         jQuery('#pw_stream_suggestions').on('change', function () {
             settings.stream_suggestions = this.checked;
+            saveSettings();
+            syncSettingsToModal();
+        });
+
+        // Reasoning mode toggle
+        jQuery('#pw_reasoning_mode').on('change', function () {
+            settings.reasoning_mode = this.checked;
+            saveSettings();
+            syncSettingsToModal();
+            // Show/hide max_output_tokens setting based on reasoning mode
+            if (this.checked) {
+                jQuery('#pw_max_output_tokens_row').show();
+            } else {
+                jQuery('#pw_max_output_tokens_row').hide();
+            }
+        });
+
+        // Max output tokens
+        jQuery('#pw_max_output_tokens').on('change', function () {
+            const val = parseInt(this.value) || 16384;
+            settings.max_output_tokens = Math.max(512, Math.min(128000, val));
+            this.value = settings.max_output_tokens;
             saveSettings();
             syncSettingsToModal();
         });

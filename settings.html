@@ -183,6 +183,33 @@
                     Connection Profile may also support streaming.
                 </p>
 
+                <!-- Reasoning Mode Settings -->
+                <label class="checkbox_label pw_checkbox_row pw_stream_row" for="pw_reasoning_mode"
+                    style="margin-top: 12px;">
+                    <input id="pw_reasoning_mode" type="checkbox" class="checkbox"
+                        title="Enable for reasoning models like DeepSeek">
+                    <span><i class="fa-solid fa-brain"></i> Reasoning Mode</span>
+                </label>
+                <p class="pw_setting_hint" style="margin: 4px 0 0 0; font-size: 0.8rem; opacity: 0.85;">
+                    Enable for reasoning models (DeepSeek, etc.). Increases max tokens and properly handles
+                    thinking tags.
+                </p>
+
+                <div id="pw_max_output_tokens_row" class="pw_row_2col" style="margin-top: 10px; display: none;">
+                    <div>
+                        <label for="pw_max_output_tokens" class="pw_input_label">
+                            <i class="fa-solid fa-terminal"></i> Max Output Tokens
+                        </label>
+                        <input id="pw_max_output_tokens" type="number" class="text_pole" value="16384" min="512"
+                            max="128000" step="512" style="width: 100%;"
+                            title="Maximum tokens for reasoning model output">
+                    </div>
+                    <div></div>
+                </div>
+                <p id="pw_max_output_tokens_hint" class="pw_setting_hint" style="margin: 4px 0 0 0; font-size: 0.75rem; opacity: 0.7; display: none;">
+                    Higher values allow more thinking tokens for reasoning models. 8K-32K recommended.
+                </p>
+
                 <h4 class="pw_section_title" style="margin-top: 15px; font-size: 0.9rem;">
                     <i class="fa-solid fa-book-open"></i> Context Sources
                 </h4>
