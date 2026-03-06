@@ -16,14 +16,6 @@
 - (Mobile) Shifted buttons to the right to fix issues of them disappearing, removed 'Pathweaver' title
 - Fixed issue where settings weren't being saved
 
-### ***ver 1.4.2***
-- Fixes changes not being saved in Style Manager
-- Added new icons to choose from
-- (Mobile) Buttons on Pathweaver bar can be swiped horizontally when too many buttons are shown
-
-### ***ver 1.4.0***
-- New setting available: Endless Surprises. A new surprise is silently queued the moment the previous one fires. Can be enabled or disabled.
-
 ![Version](https://img.shields.io/badge/SillyTavern-v1.12%2B-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![GitHub stars](https://img.shields.io/github/stars/mattjaybe/SillyTavern-Pathweaver?style=social)
@@ -280,6 +272,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 <p align="center">
   Made with ❤️ for the SillyTavern community
 </p>
+
 
 
 
