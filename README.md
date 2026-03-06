@@ -4,6 +4,10 @@
 
 ## 🆕 What's New
 
+### ***ver 1.5.0***
+- New setting: Reasoning Mode.  Increases max tokens and properly handles thinking tags.
+- Reasoning Mode allows for setting the max output token
+
 ### ***ver 1.4.6***
 - Added delay and safeguards for Surprise Me feature to prevent KoboldCPP from crashing
 
@@ -19,13 +23,6 @@
 
 ### ***ver 1.4.0***
 - New setting available: Endless Surprises. A new surprise is silently queued the moment the previous one fires. Can be enabled or disabled.
-
-### ***ver 1.3.0***
-- Added a new Surprise Me button. Surprise Me secretly injects an AI-generated suggestion into the chat context a set number of messages before it fires. Pick a style, and Pathweaver will quietly arm a hidden prompt. When the countdown hits, the suggestion appears naturally — like the story took an unexpected turn on its own.
-
-### ***ver 1.2 & 1.2.1***
-- Added option to hide the animated bar in the settings
-- 1.2.1: Ensures that the hide/show button remains clickable when the <a href="https://github.com/mattjaybe/SillyTavern-Larson">Larson extension</a> is installed
 
 ![Version](https://img.shields.io/badge/SillyTavern-v1.12%2B-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
@@ -283,6 +280,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 <p align="center">
   Made with ❤️ for the SillyTavern community
 </p>
+
 
 
 
