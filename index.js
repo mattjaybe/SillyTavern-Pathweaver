@@ -131,7 +131,11 @@
         surprise_randomize: true,   // randomize depth between min and max
         surprise_endless: false,     // auto-rearm a new surprise after each one fires
         reasoning_mode: false,      // Enable reasoning mode for models like DeepSeek
-        max_output_tokens: 16384     // Configurable max output tokens (default 16K for reasoning models)
+        max_output_tokens: 16384,    // Configurable max output tokens (default 16K for reasoning models)
+        premise_include_user: true, // Premise generator: write {{user}} into the premises
+        premise_style: 'general',   // Premise generator: last style used
+        premise_count: 6,           // Premise generator: how many premises to generate (2/4/6)
+        premise_concept: '',        // Premise generator: draft concept text
     });
 
 
@@ -1272,8 +1276,21 @@ OUTPUT FORMAT: exactly one line and nothing else:
         // Surprise Me dropdown — immediately after Director
         builtinButtonsHtml += surpriseDropdownHtml;
 
+        // Premise generator — a pinned premise shows a dot
+        const premiseTitle = pinnedPremise
+            ? `Premise: pinned "${pinnedPremise.premise.title}". Click to change or unpin.`
+            : 'Premise: generate a story premise from your concept';
+        builtinButtonsHtml += `
+            <button class="pw_cat_btn pw_premise_btn${pinnedPremise ? ' pw_premise_pinned_btn' : ''}"
+                    data-category="premise"
+                    data-name="${pinnedPremise ? 'Premise (pinned)' : 'Premise'}"
+                    title="${esc(premiseTitle)}">
+                <i class="fa-solid fa-lightbulb"></i>
+                ${pinnedPremise ? '<span class="pw_surprise_active_dot"></span>' : ''}
+            </button>`;
+
         // Main Categories (Context, Twist, Character, Explicit)
-        let categoryOptionsHtml = '<option value="director">Director Mode</option>';
+        let categoryOptionsHtml = '<option value="director">Director Mode</option><option value="premise">Premise</option>';
 
         for (const [key, cat] of Object.entries(MAIN_CATEGORIES)) {
             if (cat.nsfw && !settings.show_explicit) continue;
@@ -1434,6 +1451,11 @@ OUTPUT FORMAT: exactly one line and nothing else:
                 showDirectorModal();
                 return;
             }
+            if (category === 'premise') {
+                e.stopPropagation();
+                showPremiseModal();
+                return;
+            }
             openStyleFromBar(category);
         });
 
@@ -1489,6 +1511,8 @@ OUTPUT FORMAT: exactly one line and nothing else:
                     showSurpriseModal(category.slice('surprise:'.length));
                 } else if (category === 'director') {
                     showDirectorModal();
+                } else if (category === 'premise') {
+                    showPremiseModal();
                 } else {
                     openStyleFromBar(category);
                 }
@@ -3265,6 +3289,642 @@ Suggest developments that [describe the kind of turn you want]. Build them from 
     }
 
     // ============================================================
+    // PREMISE GENERATOR
+    // ============================================================
+
+    /*
+     * A premise is a long-running situation for the whole roleplay, not a
+     * single beat. It is built on Goal / Motivation / Conflict for {{char}},
+     * plus stakes, a central dramatic question, an "engine" that keeps making
+     * new trouble, and the opening catalyst. {{user}} only gets a role and a
+     * hook (never a goal or feelings), or is left out entirely.
+     *
+     * A pinned premise is stored in the chat's metadata and injected into
+     * every prompt with setExtensionPrompt, so it steers the whole chat.
+     */
+
+    const PREMISE_PROMPT_KEY = 'pathweaver_premise';
+    /** After this many new messages the opening has played out and is dropped from the injection. */
+    const PREMISE_OPENING_MESSAGES = 4;
+
+    /** Styles offered in the premise modal. Context-Aware and New Character have no premise form. */
+    const PREMISE_STYLES = {
+        general: { name: 'General', icon: 'fa-compass' },
+        twist: { name: 'Plot Twist', icon: 'fa-shuffle' },
+        explicit: { name: 'Explicit', icon: 'fa-fire', nsfw: true },
+    };
+
+    const PREMISE_STYLE_GUIDES = {
+        general: `STYLE: General
+Use whatever genre and tone best fit the concept and the characters.`,
+
+        twist: `STYLE: Plot Twist
+Build each premise around a hidden truth that changes how the whole situation reads once it comes out: a false identity, a concealed motive, a misread event, an ally secretly working for the other side. Put it in the Secret field. The premise must work as a complete, compelling situation without the secret; the secret recasts it rather than replacing it, and it can be revealed gradually through clues.`,
+
+        action: `STYLE: Action
+Give {{char}} an external, physical goal and a capable opposing force that acts on its own (pursuers, a rival crew, an army, a hunter). Favor a deadline or a moving target. The engine should produce repeated confrontations that escalate in scale and cost.`,
+
+        comedy: `STYLE: Comedy
+Give {{char}} a sincere, strongly held goal and a flaw, lie, or circumstance that makes every attempt backfire. The humor comes from characters taking an absurd situation seriously. Good engines: a misunderstanding or cover story that has to keep being maintained, a mismatch between a character and where they are, a rule they must not break.`,
+
+        fantasy: `STYLE: Fantasy
+Root the conflict in a rule of the world (a magic, curse, bargain, prophecy, or law) that has a cost. The engine is that cost compounding, or the rule being tested again and again.`,
+
+        horror: `STYLE: Horror
+Give {{char}} a goal (escape, protect someone, uncover the truth) against a threat that follows rules the characters have to learn and that escalates over time. Safe places and options should shrink. Favor dread and the unknown over gore.`,
+
+        mystery: `STYLE: Mystery
+The central question is something hidden that must be uncovered. Include a few suspects or explanations with plausible motives. The engine: each answer raises a new question, and someone is working to keep the truth buried.`,
+
+        noir: `STYLE: Noir
+{{char}} is compromised, and a job, debt, or temptation pulls them deeper into corruption. There are no clean choices. The engine: debts, leverage, and lies that keep coming due.`,
+
+        romance: `STYLE: Romance (SFW)
+Falling in love is never the goal; romance complicates the goal. Give the characters an external reason that keeps them close and an internal reason (a wound, a belief, a loyalty, a secret) that keeps them apart. Keep it non-explicit. The engine: situations that force closeness and keep testing what stands between them.`,
+
+        'sci-fi': `STYLE: Sci-Fi
+Build each premise on one speculative idea (a technology, discovery, or social order) and explore it through its human consequences. The engine: the idea's consequences spreading or escalating.`,
+
+        thriller: `STYLE: Thriller
+A threat with a deadline. {{char}} is outmatched and missing information the opposition has. The engine: a countdown, a pursuer, or a conspiracy that tightens with every move.`,
+
+        explicit: `STYLE: Explicit (NSFW)
+Sexual content is the point of this premise, and it should be frank about the erotic dynamic. Desire is the conflict, never the goal: "they want to sleep together" is used up after one scene. Give the characters an outside reason that keeps them close (a job, an arrangement, a shared space, a bet, a debt) and a reason the desire is costly, forbidden, or bound by rules (a rivalry, a power imbalance, a secret, the terms of the arrangement). The engine is what keeps creating new erotic situations and pushing the dynamic further over many scenes. All characters are adults.`,
+    };
+
+    let premiseModal = null;
+    let premiseResults = null; // last generated premises, kept until the chat changes
+    let pinnedPremise = null;  // { premise, style, includeUser, baseMessageCount }
+
+    function getPremiseStyleOptions() {
+        const allCategories = getAllCategories();
+        const options = [];
+        const add = (id, name, icon) => options.push({ id, name, icon });
+        add('general', PREMISE_STYLES.general.name, PREMISE_STYLES.general.icon);
+        add('twist', PREMISE_STYLES.twist.name, allCategories.twist?.icon || PREMISE_STYLES.twist.icon);
+        if (settings.show_explicit) add('explicit', PREMISE_STYLES.explicit.name, allCategories.explicit?.icon || PREMISE_STYLES.explicit.icon);
+        Object.entries(GENRE_CATEGORIES)
+            .sort((a, b) => a[1].name.localeCompare(b[1].name))
+            .forEach(([id, cat]) => add(id, cat.name, allCategories[id]?.icon || cat.icon));
+        (settings.custom_styles || []).forEach(style => add(style.id, style.name, style.icon));
+        return options;
+    }
+
+    function getPremiseStyleName(styleId) {
+        return getPremiseStyleOptions().find(o => o.id === styleId)?.name || 'General';
+    }
+
+    async function loadPremiseStyleGuide(styleId) {
+        if (PREMISE_STYLE_GUIDES[styleId]) return PREMISE_STYLE_GUIDES[styleId];
+        const customStyle = settings.custom_styles?.find(s => s.id === styleId);
+        if (customStyle) {
+            const prompt = await loadPrompt(styleId);
+            return `STYLE: ${customStyle.name} (custom)
+The style notes below were written for in-scene suggestions. Apply their genre, tone, themes, and content rules to the premise, and ignore anything about the next message or the current scene.
+${String(prompt).trim()}`;
+        }
+        return PREMISE_STYLE_GUIDES.general;
+    }
+
+    /** Character card and persona only; chat history is deliberately left out. */
+    function extractPremiseContext(includeUser) {
+        const stContext = SillyTavern.getContext();
+        if (!stContext || (stContext.characterId === undefined && !stContext.groupId)) return null;
+        const fields = getCardFields(stContext);
+        return {
+            charName: getCharacterNames(stContext),
+            userName: stContext.name1 || 'User',
+            description: fields.description || '',
+            scenario: fields.scenario || '',
+            persona: includeUser ? (fields.persona || '') : '',
+        };
+    }
+
+    function buildPremiseContextBlock(ctx, includeUser) {
+        const parts = [];
+        parts.push(includeUser
+            ? `Characters: ${ctx.charName} (played by the AI); ${ctx.userName} (the user's character).`
+            : `Main character: ${ctx.charName}. The user does not appear in this story.`);
+        if (ctx.description) parts.push(`${ctx.charName}'s description:\n${ctx.description.substring(0, 10000)}`);
+        if (includeUser && ctx.persona) parts.push(`${ctx.userName}'s persona:\n${ctx.persona.substring(0, 4000)}`);
+        if (ctx.scenario) parts.push(`The card's default scenario (for reference only; premises may depart from it):\n${ctx.scenario.substring(0, 4000)}`);
+        return parts.join('\n\n');
+    }
+
+    function buildPremiseSystemPrompt(styleGuide, ctx, includeUser, styleId) {
+        const cast = includeUser
+            ? 'an ongoing roleplay between {{user}} (the user) and {{char}}'
+            : 'an ongoing story starring {{char}}, in which the user does not appear as a character';
+        const userField = includeUser
+            ? `- Role: who {{user}} is in this situation, and why {{user}} cannot simply walk away. Do not give {{user}} a goal, feelings, or decisions; the user decides those by playing.`
+            : `- {{user}} is not part of this story. Never mention {{user}}. Invent any other characters the premise needs and give them names.`;
+        const secretField = styleId === 'twist'
+            ? '\n- Secret: the hidden truth, and who knows it.'
+            : '';
+        const secretLine = styleId === 'twist' ? '\nSecret: <the hidden truth>' : '';
+        const roleLine = includeUser ? '\nRole: <{{user}}\'s role and hook>' : '';
+
+        const prompt = `You create story premises for ${cast}. The user gives you a concept: a few sentences, a vibe, or a list of tags. Turn it into premises.
+
+A premise is a long-running situation that can sustain many scenes, not a single scene or event. Describe the starting forces and pressures; do not script what happens later, and never reveal how it ends.
+
+${styleGuide.trim()}
+
+EACH PREMISE HAS:
+- Premise: one or two sentences that capture the heart of the story: who, the catalyst, what they want, and what stands in the way.
+- Goal: what {{char}} wants. Concrete enough that you could tell whether it was achieved.
+- Motivation: why {{char}} wants it, and why it matters to them personally.
+- Conflict: what stands in the way: an opposing person or force, or the gap between what {{char}} wants and what they need.
+${userField}
+- Stakes: what is lost if things go wrong.
+- Question: one central dramatic question the story keeps returning to. Do not answer it.
+- Engine: what keeps producing new conflict over many scenes: what the opposition does if nobody acts, a recurring event, a countdown, or rules that keep being tested.
+- Opening: the concrete situation the first scene starts in, and why the story starts now.${secretField}
+
+RULES:
+- Keep everything the concept asks for (setting, tropes, dynamics, tags) and fill the gaps with specific choices. Do not just restate the tags.
+- Keep {{char}} true to their description: personality, abilities, and world. If the concept moves them to a different setting, follow the concept but keep who they are.
+- Set Type to "plot-driven" when the main conflict is an outside antagonist or force, or "character-driven" when it is the gap between what {{char}} wants and what they need (often a false belief they hold). Mix both types across the set.
+- Make the premises clearly different from each other: vary the source of conflict, the stakes, and the setting. Never write the same premise in different clothes.
+- Use plain, specific language. Name important places, groups, and secondary characters.
+
+OUTPUT FORMAT (follow exactly):
+<one emoji> <title in plain text, under 8 words>
+Type: <plot-driven or character-driven>
+Premise: <1-2 sentences>
+Goal: <...>
+Motivation: <...>
+Conflict: <...>${roleLine}
+Stakes: <...>
+Question: <...>
+Engine: <...>
+Opening: <...>${secretLine}
+---
+Put a line containing only --- between premises. No numbering, markdown, preamble, or closing remarks.`;
+        return substituteMacros(prompt, { charName: ctx.charName, userName: ctx.userName });
+    }
+
+    const PREMISE_FIELDS = {
+        type: 'type', premise: 'premise', logline: 'premise',
+        goal: 'goal', motivation: 'motivation', conflict: 'conflict',
+        role: 'role', 'user role': 'role',
+        stakes: 'stakes', question: 'question', 'dramatic question': 'question', 'central question': 'question',
+        engine: 'engine', opening: 'opening', secret: 'secret',
+    };
+
+    /** Parse one premise block into { emoji, title, type, premise, goal, ... } or null. */
+    function parsePremiseBlock(blockText) {
+        const text = stripReasoning(blockText).replace(/<[^>]*>/g, '').trim();
+        if (text.length < 20) return null;
+
+        const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+        const result = { emoji: '✨', title: '' };
+        let current = null;
+        const labelRegex = /^[-*\s]*\**\s*([A-Za-z][A-Za-z ']{1,24}?)\s*\**\s*:\s*\**\s*(.*)$/;
+
+        for (const line of lines) {
+            const match = line.match(labelRegex);
+            // "Goal", but also "Mara's goal" or "Lena's role"
+            const label = match ? match[1].toLowerCase().replace(/'s\b/g, '').trim() : '';
+            const key = match && (PREMISE_FIELDS[label] || PREMISE_FIELDS[label.split(/\s+/).pop()]);
+            if (key) {
+                current = key;
+                result[key] = stripMarkdown(match[2]);
+                continue;
+            }
+            if (!result.title && !current) {
+                const emojiMatch = line.match(EMOJI_SEQUENCE_REGEX);
+                if (emojiMatch) {
+                    result.emoji = emojiMatch[0];
+                    result.title = stripMarkdown(line.substring(emojiMatch[0].length));
+                } else {
+                    result.title = stripMarkdown(line.replace(/^\s*\d+[.)]\s*/, ''));
+                }
+                continue;
+            }
+            if (current) result[current] = `${result[current]} ${stripMarkdown(line)}`.trim();
+        }
+
+        if (!result.premise || !result.title) return null;
+        result.title = result.title.substring(0, 100);
+        const type = (result.type || '').toLowerCase();
+        result.type = type.includes('character') ? 'character-driven' : type.includes('plot') ? 'plot-driven' : '';
+        return result;
+    }
+
+    async function parsePremises(text, maxCount) {
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const cleaned = stripReasoning(text);
+        if (!cleaned) return [];
+        let blocks = cleaned.split(BLOCK_SEPARATOR);
+        // Fallback: a new block starts at each line that begins with an emoji
+        if (blocks.length <= 1) blocks = cleaned.split(new RegExp(`\\n(?=\\s*${EMOJI_PATTERN})`, 'u'));
+        return blocks.map(parsePremiseBlock).filter(Boolean).slice(0, maxCount);
+    }
+
+    function premiseFieldRows(premise, userName, { forInjection = false, includeOpening = true, charName = '' } = {}) {
+        // In the injected prompt, say whose goal it is
+        const owner = forInjection && charName ? `${charName}'s ` : '';
+        const label = text => owner ? `${owner}${text.toLowerCase()}` : text;
+        const rows = [
+            [label('Goal'), premise.goal],
+            [label('Motivation'), premise.motivation],
+            [label('Conflict'), premise.conflict],
+            [`${userName}'s role`, premise.role],
+            ['Stakes', premise.stakes],
+            [forInjection ? 'Central question (keep returning to it; do not resolve it early)' : 'Question', premise.question],
+            [forInjection ? 'Engine (draw new complications from this)' : 'Engine', premise.engine],
+        ];
+        if (includeOpening) rows.push([forInjection ? 'Opening situation' : 'Opening', premise.opening]);
+        if (premise.secret) rows.push([forInjection ? 'Secret (hidden from the other characters; reveal gradually through clues)' : 'Secret', premise.secret]);
+        return rows.filter(([, value]) => value);
+    }
+
+    function formatPremiseText(premise, userName) {
+        const lines = [`${premise.title}`, '', premise.premise, ''];
+        for (const [label, value] of premiseFieldRows(premise, userName)) lines.push(`${label}: ${value}`);
+        return lines.join('\n').trim();
+    }
+
+    function buildPremiseInjection(pin) {
+        const stContext = SillyTavern.getContext();
+        const userName = stContext?.name1 || 'User';
+        // In a group, name2 is just the last speaker, so leave the owner out
+        const charName = stContext?.groupId ? '' : (stContext?.name2 || '');
+        const newMessages = (stContext?.chat?.length ?? 0) - (pin.baseMessageCount || 0);
+        const includeOpening = newMessages < PREMISE_OPENING_MESSAGES;
+        const header = pin.includeUser
+            ? '[Story premise: the long-running situation this story is built on. Keep events anchored to it and let new developments grow from it. It is a situation, not a script: never decide what the user\'s character wants, feels, or chooses.]'
+            : `[Story premise: the long-running situation this story is built on. Keep events anchored to it and let new developments grow from it. It is a situation, not a script. ${userName} is not a character in this story; do not write ${userName} into it.]`;
+        const lines = [header, `Title: ${pin.premise.title}`, `Premise: ${pin.premise.premise}`];
+        for (const [label, value] of premiseFieldRows(pin.premise, userName, { forInjection: true, includeOpening, charName })) {
+            lines.push(`${label}: ${value}`);
+        }
+        return lines.join('\n');
+    }
+
+    function applyPremiseInjection() {
+        try {
+            const stContext = SillyTavern.getContext();
+            if (typeof stContext?.setExtensionPrompt !== 'function') {
+                warn('setExtensionPrompt not available; premise cannot be pinned');
+                return false;
+            }
+            if (!pinnedPremise) {
+                stContext.setExtensionPrompt(PREMISE_PROMPT_KEY, '', EXTENSION_PROMPT_TYPES.NONE, 0);
+                return true;
+            }
+            stContext.setExtensionPrompt(PREMISE_PROMPT_KEY, buildPremiseInjection(pinnedPremise), EXTENSION_PROMPT_TYPES.IN_PROMPT, 0, false, EXTENSION_PROMPT_ROLES.SYSTEM);
+            return true;
+        } catch (err) {
+            warn('Failed to apply premise injection:', err);
+            return false;
+        }
+    }
+
+    function savePinnedPremise() {
+        try {
+            const stContext = SillyTavern.getContext();
+            if (!stContext?.chatMetadata) return;
+            if (pinnedPremise) stContext.chatMetadata.pathweaver_premise = pinnedPremise;
+            else delete stContext.chatMetadata.pathweaver_premise;
+            if (typeof stContext.saveMetadataDebounced === 'function') stContext.saveMetadataDebounced();
+        } catch (err) { warn('Failed to save pinned premise:', err); }
+    }
+
+    function loadPinnedPremise() {
+        try {
+            const saved = SillyTavern.getContext()?.chatMetadata?.pathweaver_premise;
+            pinnedPremise = saved?.premise?.premise ? saved : null;
+        } catch (err) {
+            warn('Failed to load pinned premise:', err);
+            pinnedPremise = null;
+        }
+        applyPremiseInjection();
+    }
+
+    function pinPremise(premise, style, includeUser) {
+        const stContext = SillyTavern.getContext();
+        if (!stContext?.chatMetadata || (stContext.characterId === undefined && !stContext.groupId)) {
+            showToast('Open a chat before pinning a premise.', 'warning');
+            return;
+        }
+        pinnedPremise = {
+            premise,
+            style,
+            includeUser,
+            baseMessageCount: stContext.chat?.length ?? 0,
+        };
+        if (!applyPremiseInjection()) {
+            pinnedPremise = null;
+            showToast('This version of SillyTavern can\'t pin prompts.', 'error');
+            return;
+        }
+        savePinnedPremise();
+        createActionBar();
+        renderPinnedPremise();
+        showToast(`Premise pinned: ${premise.title}`);
+    }
+
+    function unpinPremise() {
+        pinnedPremise = null;
+        applyPremiseInjection();
+        savePinnedPremise();
+        createActionBar();
+        renderPinnedPremise();
+        showToast('Premise unpinned');
+    }
+
+    function renderPinnedPremise() {
+        const box = jQuery('#pw_premise_pinned');
+        if (!box.length) return;
+        if (!pinnedPremise) {
+            box.hide().empty();
+        } else {
+            const p = pinnedPremise.premise;
+            box.html(`
+                <div class="pw_premise_pinned_head">
+                    <span class="pw_premise_pinned_label"><i class="fa-solid fa-thumbtack"></i> Pinned to this chat</span>
+                    <button class="pw_header_btn" id="pw_premise_unpin" title="Stop injecting this premise"><i class="fa-solid fa-xmark"></i> Unpin</button>
+                </div>
+                <div class="pw_premise_pinned_title">${esc(p.emoji || '✨')} ${esc(p.title)}</div>
+                <div class="pw_premise_pinned_text">${esc(p.premise)}</div>`).show();
+            box.find('#pw_premise_unpin').on('click', unpinPremise);
+        }
+        // Keep the "Pinned" state of result cards in sync
+        jQuery('#pw_premise_results_content .pw_premise_card').each(function () {
+            const index = jQuery(this).data('index');
+            const isPinned = !!(pinnedPremise && premiseResults?.items[index] === pinnedPremise.premise);
+            jQuery(this).toggleClass('pw_premise_is_pinned', isPinned)
+                .find('[data-action="pin"]').html(isPinned
+                    ? '<i class="fa-solid fa-check"></i> Pinned'
+                    : '<i class="fa-solid fa-thumbtack"></i> Pin');
+        });
+    }
+
+    function displayPremises(container) {
+        const { DOMPurify } = SillyTavern.libs;
+        const clean = s => DOMPurify.sanitize(String(s ?? ''), { ALLOWED_TAGS: [] });
+        const { items } = premiseResults;
+        const userName = SillyTavern.getContext()?.name1 || 'User';
+
+        if (!items.length) {
+            showEmptyState('No premises could be generated. Try again or reword the concept.', container);
+            return;
+        }
+
+        const cards = items.map((p, index) => {
+            const rows = premiseFieldRows(p, userName)
+                .map(([label, value]) => `<dt>${clean(label)}</dt><dd>${clean(value)}</dd>`).join('');
+            const typeBadge = p.type
+                ? `<span class="pw_premise_type pw_premise_type_${p.type === 'plot-driven' ? 'plot' : 'character'}">${p.type === 'plot-driven' ? 'Plot-driven' : 'Character-driven'}</span>`
+                : '';
+            return `
+            <div class="pw_suggestion_card pw_premise_card" data-index="${index}">
+                <div class="pw_card_header">
+                    <span class="pw_card_emoji">${clean(p.emoji || '✨')}</span>
+                    <span class="pw_card_title">${clean(p.title)}</span>
+                </div>
+                ${typeBadge}
+                <div class="pw_premise_logline">${clean(p.premise)}</div>
+                <details class="pw_premise_details">
+                    <summary>Goal, motivation, conflict &amp; more</summary>
+                    <dl>${rows}</dl>
+                </details>
+                <div class="pw_card_actions">
+                    <button class="pw_card_action_btn" data-action="copy" title="Copy the full premise">
+                        <i class="fa-solid fa-copy"></i> Copy
+                    </button>
+                    <button class="pw_card_action_btn primary" data-action="pin" title="Inject this premise into every prompt in this chat">
+                        <i class="fa-solid fa-thumbtack"></i> Pin
+                    </button>
+                </div>
+            </div>`;
+        }).join('');
+
+        container.html(`<div class="pw_suggestions_grid pw_premise_grid">${cards}</div>`);
+        container.find('.pw_premise_card').on('click', '[data-action]', function (e) {
+            e.stopPropagation();
+            const index = jQuery(this).closest('.pw_premise_card').data('index');
+            const premise = premiseResults?.items[index];
+            if (!premise) return;
+            const action = jQuery(this).data('action');
+            if (action === 'copy') {
+                navigator.clipboard.writeText(formatPremiseText(premise, userName))
+                    .then(() => showToast('Premise copied!'));
+            } else if (action === 'pin') {
+                if (pinnedPremise?.premise === premise) unpinPremise();
+                else pinPremise(premise, premiseResults.style, premiseResults.includeUser);
+            }
+        });
+        renderPinnedPremise();
+    }
+
+    async function generatePremises({ concept, style, includeUser, count, container }) {
+        if (isGenerating) {
+            showToast('Pathweaver is still finishing the previous request.', 'warning');
+            return;
+        }
+
+        isGenerating = true;
+        showLoadingState(style, container, 'Generating premises...');
+        abortController = new AbortController();
+        const signal = abortController.signal;
+
+        try {
+            const ctx = extractPremiseContext(includeUser);
+            if (!ctx) {
+                showEmptyState('Select a character to generate premises for.', container);
+                return;
+            }
+
+            const styleGuide = await loadPremiseStyleGuide(style);
+            const systemPrompt = buildPremiseSystemPrompt(styleGuide, ctx, includeUser, style);
+            const userPrompt = `[CHARACTERS]\n${buildPremiseContextBlock(ctx, includeUser)}\n\n[CONCEPT]\n${concept}\n\n[TASK]\nWrite exactly ${count} premises based on the concept.`;
+            const needed = count * 450 + 800;
+            const maxTokens = settings.reasoning_mode
+                ? Math.max(settings.max_output_tokens || 8192, needed)
+                : Math.min(8192, Math.max(2048, needed));
+
+            if (settings.source === 'profile') getSelectedProfile(SillyTavern.getContext());
+
+            const result = await requestCompletion({ systemPrompt, userPrompt, maxTokens, signal, temperature: 0.9 });
+            if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+
+            const items = await parsePremises(result, count);
+            // The user's character has no role in a premise written without them
+            if (!includeUser) items.forEach(p => delete p.role);
+            premiseResults = { items, style, includeUser };
+            displayPremises(container);
+        } catch (err) {
+            if (err.name === 'AbortError' || signal.aborted) {
+                showEmptyState('Generation cancelled by user', container);
+            } else {
+                error('Premise generation failed:', err);
+                showErrorState(err.message || 'API request failed', container);
+            }
+        } finally {
+            abortController = null;
+            await waitForMainApiRequest();
+            isGenerating = false;
+        }
+    }
+
+    function showPremiseModal() {
+        if (jQuery('#pw_premise_modal').length) {
+            premiseModal = jQuery('#pw_premise_modal');
+            refreshPremiseModalOptions();
+            renderPinnedPremise();
+            jQuery('#pw_premise_show_results').toggle(!!premiseResults?.items?.length);
+            premiseModal.addClass('active');
+            return;
+        }
+
+        const countOptions = [2, 4, 6].map(n =>
+            `<option value="${n}"${settings.premise_count === n ? ' selected' : ''}>${n}</option>`).join('');
+
+        const modalHtml = `
+        <div class="pw_modal_overlay" id="pw_premise_modal">
+            <div class="pw_modal" style="max-width: 760px;">
+                <div class="pw_modal_header">
+                    <h3 class="pw_modal_title">
+                        <i class="fa-solid fa-lightbulb" style="color: var(--pw-premise-color);"></i>
+                        Premise
+                    </h3>
+                    <button class="pw_modal_close" id="pw_close_premise">&times;</button>
+                </div>
+                <div class="pw_modal_body" style="overflow: hidden; display: flex; flex-direction: column;">
+                    <div class="pw_director_container">
+                        <div class="pw_director_view visible" id="pw_premise_inputs_view">
+                            <div class="pw_premise_pinned" id="pw_premise_pinned" style="display:none;"></div>
+
+                            <label class="pw_premise_label" for="pw_premise_concept">Your concept</label>
+                            <textarea id="pw_premise_concept" class="pw_premise_concept" rows="4" maxlength="2000"
+                                placeholder="A few sentences or tags, e.g. &quot;rivals forced to work together, heist, 1920s Chicago, slow burn&quot;"></textarea>
+
+                            <div class="pw_premise_options">
+                                <label class="pw_premise_option">
+                                    <span>Style</span>
+                                    <select id="pw_premise_style" class="pw_select"></select>
+                                </label>
+                                <label class="pw_premise_option">
+                                    <span>Premises</span>
+                                    <select id="pw_premise_count" class="pw_select">${countOptions}</select>
+                                </label>
+                                <label class="pw_premise_option pw_premise_check" title="When off, premises are written about the character and an invented cast, without your character.">
+                                    <input type="checkbox" id="pw_premise_include_user"${settings.premise_include_user ? ' checked' : ''}>
+                                    <span id="pw_premise_include_user_label">Include my character</span>
+                                </label>
+                            </div>
+
+                            <div style="display: flex; gap: 10px; margin-top: 16px;">
+                                <button class="pw_header_btn primary pw_premise_generate_btn" id="pw_premise_generate" style="margin-top:0;">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Premises
+                                </button>
+                                <button class="pw_header_btn" id="pw_premise_show_results" style="display:none; flex: 1; justify-content: center; align-items: center; gap: 8px;">
+                                    Show Premises <i class="fa-solid fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="pw_director_view hidden" id="pw_premise_results_view">
+                            <div class="pw_results_header">
+                                <button class="pw_back_btn" id="pw_premise_back">
+                                    <i class="fa-solid fa-arrow-left"></i> Back to concept
+                                </button>
+                                <button class="pw_header_btn" id="pw_premise_regenerate" title="Generate new premises from the same concept" style="margin-left: auto;">
+                                    <i class="fa-solid fa-rotate"></i> Refresh
+                                </button>
+                            </div>
+                            <div id="pw_premise_results_content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+
+        jQuery('body').append(modalHtml);
+        premiseModal = jQuery('#pw_premise_modal');
+        const inputsView = jQuery('#pw_premise_inputs_view');
+        const resultsView = jQuery('#pw_premise_results_view');
+        const results = jQuery('#pw_premise_results_content');
+        const conceptInput = jQuery('#pw_premise_concept');
+
+        conceptInput.val(settings.premise_concept || '');
+        refreshPremiseModalOptions();
+        renderPinnedPremise();
+
+        const showResults = () => {
+            inputsView.removeClass('visible').addClass('hidden');
+            resultsView.removeClass('hidden').addClass('visible');
+        };
+        const showInputs = () => {
+            resultsView.removeClass('visible').addClass('hidden');
+            inputsView.removeClass('hidden').addClass('visible');
+            jQuery('#pw_premise_show_results').toggle(!!premiseResults?.items?.length);
+        };
+        const close = () => premiseModal.removeClass('active');
+
+        jQuery('#pw_close_premise').on('click', close);
+        premiseModal.on('click', (e) => { if (e.target === premiseModal[0]) close(); });
+        jQuery('#pw_premise_back').on('click', showInputs);
+        jQuery('#pw_premise_show_results').on('click', () => {
+            if (premiseResults) displayPremises(results);
+            showResults();
+        });
+
+        conceptInput.on('input', function () {
+            settings.premise_concept = this.value;
+            SillyTavern.getContext().saveSettingsDebounced();
+        });
+        jQuery('#pw_premise_style').on('change', function () {
+            settings.premise_style = this.value;
+            SillyTavern.getContext().saveSettingsDebounced();
+        });
+        jQuery('#pw_premise_count').on('change', function () {
+            settings.premise_count = parseInt(this.value) || 6;
+            SillyTavern.getContext().saveSettingsDebounced();
+        });
+        jQuery('#pw_premise_include_user').on('change', function () {
+            settings.premise_include_user = this.checked;
+            SillyTavern.getContext().saveSettingsDebounced();
+        });
+
+        const run = () => {
+            const concept = conceptInput.val().trim();
+            if (!concept) {
+                showToast('Describe a concept first: a few sentences or tags.', 'warning');
+                conceptInput.trigger('focus');
+                return;
+            }
+            showResults();
+            generatePremises({
+                concept,
+                style: jQuery('#pw_premise_style').val() || 'general',
+                includeUser: jQuery('#pw_premise_include_user').is(':checked'),
+                count: parseInt(jQuery('#pw_premise_count').val()) || 6,
+                container: results,
+            });
+        };
+        jQuery('#pw_premise_generate').on('click', run);
+        jQuery('#pw_premise_regenerate').on('click', run);
+
+        setTimeout(() => premiseModal.addClass('active'), 10);
+    }
+
+    /** Rebuild the style list (Explicit and custom styles can change) and the user label. */
+    function refreshPremiseModalOptions() {
+        const select = jQuery('#pw_premise_style');
+        if (!select.length) return;
+        const options = getPremiseStyleOptions();
+        const selected = options.some(o => o.id === settings.premise_style) ? settings.premise_style : 'general';
+        select.html(options.map(o =>
+            `<option value="${esc(o.id)}"${o.id === selected ? ' selected' : ''}>${esc(o.name)}</option>`).join(''));
+        const userName = SillyTavern.getContext()?.name1;
+        jQuery('#pw_premise_include_user_label').text(userName ? `Include ${userName}` : 'Include my character');
+    }
+
+    // ============================================================
     // SURPRISE FEATURE
     // ============================================================
 
@@ -4107,6 +4767,14 @@ Suggest developments that [describe the kind of turn you want]. Build them from 
         activeSurprises = [];
         loadSurpriseQueue();
         renderSurpriseQueue();
+        // Premises are written for one character; old results don't carry over
+        premiseResults = null;
+        jQuery('#pw_premise_results_content').empty();
+        jQuery('#pw_premise_show_results').hide();
+        jQuery('#pw_premise_back').trigger('click');
+        loadPinnedPremise();
+        refreshPremiseModalOptions();
+        renderPinnedPremise();
         createActionBar();
     };
 
@@ -4116,12 +4784,15 @@ Suggest developments that [describe the kind of turn you want]. Build them from 
 
     const handleMessageSent = () => {
         jQuery('.pw_action_bar').addClass('pw_processing');
+        // Drops the premise's opening from the injection once play has moved past it
+        if (pinnedPremise) applyPremiseInjection();
         // The user's message counts toward armed surprises; one that becomes due
         // now is injected in time for the reply being generated.
         checkSurpriseTrigger({ replyReceived: false });
     };
 
     const handleMessageReceived = (_messageId, type) => {
+        if (pinnedPremise) applyPremiseInjection();
         if (type === 'first_message') return;
         checkSurpriseTrigger({ replyReceived: true });
     };
@@ -4279,7 +4950,16 @@ Suggest developments that [describe the kind of turn you want]. Build them from 
         jQuery('#pw_styles_manager').remove();
         jQuery('#pw_director_modal').remove();
         jQuery('#pw_surprise_modal').remove();
+        jQuery('#pw_premise_modal').remove();
         jQuery('#pathweaver_settings').remove();
+
+        // Clear the premise injection (chatMetadata keeps it for restore on next init)
+        try {
+            SillyTavern.getContext().setExtensionPrompt?.(PREMISE_PROMPT_KEY, '', EXTENSION_PROMPT_TYPES.NONE, 0);
+        } catch (_) { }
+        pinnedPremise = null;
+        premiseResults = null;
+        premiseModal = null;
 
         // Clear any active surprise injections (leave chatMetadata intact for restore on next init)
         try {
@@ -4320,6 +5000,7 @@ Suggest developments that [describe the kind of turn you want]. Build them from 
             await initSettingsPanel();
             loadSurpriseQueue();
             renderSurpriseQueue();
+            loadPinnedPremise();
             createActionBar();
             registerEvents();
             log('Initialized successfully');
