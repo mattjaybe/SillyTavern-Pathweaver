@@ -1,4 +1,4 @@
-<div class="pathweaver_settings">
+<div id="pathweaver_settings" class="pathweaver_settings" data-extension-name="pathweaver">
     <div class="inline-drawer">
         <div class="inline-drawer-toggle inline-drawer-header">
             <b>Pathweaver</b>
@@ -60,7 +60,6 @@
                     <input id="pw_ollama_url" type="text" class="text_pole" placeholder="http://localhost:11434"
                         title="Ollama API endpoint">
                     <select id="pw_ollama_model" class="text_pole pw_select"></select>
-                    <div id="pw_ollama_status" class="pw_provider_status"></div>
                 </div>
 
                 <!-- Provider: OpenAI Compatible -->
@@ -115,6 +114,10 @@
                             <input id="pw_insert_type_director" type="checkbox" class="checkbox">
                             <span>[Director: ]</span>
                         </label>
+                        <p class="pw_setting_hint" style="margin: 0; font-size: 0.78rem; opacity: 0.8;">
+                            With a wrapper on, suggestions are written as directions to the AI. Without one, they are
+                            written as your character's next message.
+                        </p>
                     </div>
                 </div>
 
@@ -154,6 +157,9 @@
                             <option value="6">6 messages</option>
                             <option value="8">8 messages</option>
                             <option value="10">10 messages</option>
+                            <option value="12">12 messages</option>
+                            <option value="16">16 messages</option>
+                            <option value="20">20 messages</option>
                         </select>
                     </div>
                 </div>
@@ -179,8 +185,8 @@
                     <span><i class="fa-solid fa-stream"></i> Stream suggestions</span>
                 </label>
                 <p class="pw_setting_hint" style="margin: 4px 0 0 0; font-size: 0.8rem; opacity: 0.85;">
-                    Cards appear as each suggestion is generated. Works with Ollama and OpenAI-compatible APIs;
-                    Connection Profile may also support streaming.
+                    Cards appear as each suggestion is generated. Works with Ollama, OpenAI-compatible APIs, and most
+                    Connection Profiles. The Default (Main API) source can't stream.
                 </p>
 
                 <!-- Reasoning Mode Settings -->
@@ -232,9 +238,9 @@
                         <input id="pw_include_worldinfo" type="checkbox" class="checkbox">
                         <span><i class="fa-solid fa-globe"></i> Include World Info Lorebook</span>
                     </label>
-                    <div class="pw_warning_text">
-                        <i class="fa-solid fa-triangle-exclamation"></i> Experimental: May decrease suggestion quality.
-                        Works only on entries with Order 250 or higher.
+                    <div class="pw_setting_hint">
+                        <i class="fa-solid fa-circle-info"></i> Adds the World Info entries that the recent messages
+                        activate, the same way a normal reply would.
                     </div>
                 </div>
 

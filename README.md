@@ -4,6 +4,10 @@
 
 ## 🆕 What's New
 
+### ***ver 1.7.0***
+- New: Premise generator (💡 in the bar). Describe a concept in sentences or tags, pick a style, and get up to 6 story premises built on goal, motivation and conflict, with stakes, a central question, and an engine that keeps the story going. Pin one to keep it in the prompt for the whole chat.
+- Premises can leave your character out, for narrator or story-generator characters.
+
 ### ***ver 1.5.0***
 - New setting: Reasoning Mode.  Increases max tokens and properly handles thinking tags.
 - Reasoning Mode allows for setting the max output token
@@ -41,7 +45,9 @@
 - **Context-Aware**: Analyzes 2-10 messages for coherent suggestions
 - **Director Mode**: Single Scene or Story Beats for precise control
 - **Surprise Me**: Adds a hidden suggestion that triggers later in the story/roleplay
+- **Premise**: Turn a concept or a handful of tags into long-running story premises and pin one to the chat
 - **Genre Specialization**: 9 built-in genres + unlimited custom styles
+- **Time Skip**: Turn on a time-skip variant per style, then use the ⏳ button in the bar to get suggestions that jump ahead in time
 
 </td>
 <td width="50%">
@@ -75,6 +81,7 @@ Pathweaver adds a **Control Bar** above your chat input. Click any button to ins
 |------|----------|-------|
 | 🎬 | **Director** | Opens a simplified input box. You type a prompt, AI gives you tailored suggestions. |
 | 😲 | **Surprise Me** | Secretly injects a suggestion into context a set number of messages before it triggers. |
+| 💡 | **Premise** | Type a concept (sentences or tags), choose a style, and generate up to 6 premises. Each one gives the character a goal, motivation and conflict, plus your character's role, the stakes, a central question, an engine for new trouble, and an opening. **Pin** one and it's added to every prompt in that chat until you unpin it. Untick *Include (your character)* to write premises without your character. |
 | 🧭 | **Context-Aware** | "What happens next?" Smart suggestions based on story logic and context. |
 | 🔀 | **Plot Twist** | Throws a curveball. Unexpected events, betrayals, and shocks. |
 | 👤+ | **New Character** | Adds a new character to the story based on a variety of character tropes. |
